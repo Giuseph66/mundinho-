@@ -1,0 +1,15 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/npc.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://assets/models/quaternius_universal_animation_library_2/Mannequin_F.glb" id="4"]
+[ext_resource type="PackedScene" path="res://assets/models/quaternius_universal_animation_library_2/UAL2_Standard.glb" id="5"]
+
+[node name="NPCs" type="Node3D"]
+
+[node name="MannequinF" parent="." instance=ExtResource("1")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 1, -4)
+model_scene = ExtResource("4")
+
+[node name="UAL2Standard" parent="." instance=ExtResource("1")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 1, -4)
+model_scene = ExtResource("5")

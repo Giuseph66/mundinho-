@@ -1,0 +1,12 @@
+[    1174ms] TagError: adsbygoogle.push() error: No slot size for availableWidth=0
+    at Ro (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4279852833813635:161:314)
+    at Qo (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4279852833813635:160:134)
+    at Yo (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4279852833813635:164:172)
+    at fp (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4279852833813635:181:15)
+    at hp (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4279852833813635:182:328)
+    at ur (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4279852833813635:230:66)
+    at g.client (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4279852833813635:220:45)
+    at Xj.g (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4279852833813635:79:545)
+    at ek (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4279852833813635:80:706)
+    at pr (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4279852833813635:220:33)
+[    3224ms] [ERROR] Attestation check for Shared Storage on https://www.googleadservices.com failed. @ https://www.googleadservices.com/pagead/managed/js/activeview/current/reach_worklet.html:0
