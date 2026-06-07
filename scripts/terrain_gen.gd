@@ -125,10 +125,11 @@ func _create_edge_walls(parent: Node3D) -> void:
 	var half := size * 0.5
 	var wall_height := 20.0
 	var wall_thickness := 2.0
-	_add_wall(walls, Vector3(0, wall_height * 0.5, -half), Vector3(size, wall_height, wall_thickness))
-	_add_wall(walls, Vector3(0, wall_height * 0.5, half), Vector3(size, wall_height, wall_thickness))
-	_add_wall(walls, Vector3(-half, wall_height * 0.5, 0), Vector3(wall_thickness, wall_height, size))
-	_add_wall(walls, Vector3(half, wall_height * 0.5, 0), Vector3(wall_thickness, wall_height, size))
+	var wall_offset := half + wall_thickness * 0.5
+	_add_wall(walls, Vector3(0, wall_height * 0.5, -wall_offset), Vector3(size, wall_height, wall_thickness))
+	_add_wall(walls, Vector3(0, wall_height * 0.5, wall_offset), Vector3(size, wall_height, wall_thickness))
+	_add_wall(walls, Vector3(-wall_offset, wall_height * 0.5, 0), Vector3(wall_thickness, wall_height, size))
+	_add_wall(walls, Vector3(wall_offset, wall_height * 0.5, 0), Vector3(wall_thickness, wall_height, size))
 
 func _add_wall(parent: Node3D, position: Vector3, extents: Vector3) -> void:
 	var body := StaticBody3D.new()
