@@ -5,6 +5,11 @@ extends CharacterBody3D
 @export_range(0.3, 10.0, 0.1) var crouch_speed: float = 2.5
 @export_range(1.0, 20.0, 0.1) var jump_velocity: float = 6.5
 @export_range(0.0001, 0.02, 0.0001) var mouse_sensitivity: float = 0.0025
+@export_range(8.0, 80.0, 0.5) var top_down_height: float = 28.0
+@export_range(2.0, 120.0, 0.5) var top_down_zoom: float = 22.0
+@export_range(0.5, 30.0, 0.5) var top_down_zoom_step: float = 3.0
+@export var start_top_down: bool = false
+@export var start_fullscreen: bool = true
 
 const STANDING_HEIGHT := 1.8
 const CROUCH_HEIGHT := 1.0
@@ -22,15 +27,22 @@ var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var is_controlling: bool = true
 var possessed_npc: CharacterBody3D = null
 var nearby_npc: CharacterBody3D = null
+var top_down_enabled: bool = false
 
 @onready var camera: Camera3D = $Camera3D
+@onready var top_down_camera: Camera3D = $TopDownCamera3D
 @onready var collision_shape: CollisionShape3D = $CollisionShape3D
 @onready var capsule_shape: CapsuleShape3D = collision_shape.shape.duplicate()
 @onready var possess_prompt: Label = $PossessPrompt/Label
 
 func _ready() -> void:
+	if start_fullscreen and not Engine.is_editor_hint():
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	collision_shape.shape = capsule_shape
+	top_down_enabled = start_top_down
+	_update_top_down_camera()
+	_apply_camera_mode()
 	# Terreno gerado por ruído pode ter ladeiras íngremes; o ângulo padrão de
 	# chão (45°) trata isso como parede e trava o personagem. Floor snap evita
 	# que pequenos ressaltos do terreno tirem o personagem do chão.
@@ -53,7 +65,15 @@ func _snap_to_ground() -> void:
 	velocity = Vector3.ZERO
 
 func _unhandled_input(event: InputEvent) -> void:
-	if is_controlling and event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	if top_down_enabled and event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+			top_down_zoom = maxf(2.0, top_down_zoom - top_down_zoom_step)
+			_update_top_down_camera()
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+			top_down_zoom = minf(120.0, top_down_zoom + top_down_zoom_step)
+			_update_top_down_camera()
+
+	if is_controlling and not top_down_enabled and event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		rotate_y(-event.relative.x * mouse_sensitivity)
 		camera.rotate_x(-event.relative.y * mouse_sensitivity)
 		camera.rotation.x = clampf(camera.rotation.x, deg_to_rad(-80), deg_to_rad(80))
@@ -63,6 +83,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if event.is_action_pressed("possess"):
 		_toggle_possession()
+
+	if event.is_action_pressed("toggle_view") and is_controlling:
+		top_down_enabled = not top_down_enabled
+		_apply_camera_mode()
 
 ## "F" perto de um NPC: assume o controle dele em terceira pessoa, congelando
 ## o corpo do jogador no lugar. "F" de novo: devolve a IA ao NPC (ele escolhe
@@ -82,7 +106,17 @@ func _toggle_possession() -> void:
 			possessed_npc.stop_possession()
 		possessed_npc = null
 		is_controlling = true
-		camera.current = true
+		_apply_camera_mode()
+
+func _apply_camera_mode() -> void:
+	camera.current = is_controlling and not top_down_enabled
+	top_down_camera.current = is_controlling and top_down_enabled
+
+func _update_top_down_camera() -> void:
+	top_down_camera.position = Vector3(0, top_down_height, 0)
+	top_down_camera.rotation = Vector3(deg_to_rad(-90.0), 0, 0)
+	top_down_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	top_down_camera.size = top_down_zoom
 
 func _update_possess_prompt() -> void:
 	nearby_npc = null
@@ -100,6 +134,7 @@ func _physics_process(delta: float) -> void:
 	if not is_controlling:
 		return
 
+	_update_top_down_camera()
 	_update_possess_prompt()
 
 	if not is_on_floor():
@@ -115,7 +150,9 @@ func _physics_process(delta: float) -> void:
 	camera.position.y = move_toward(camera.position.y, target_camera_y, CROUCH_TRANSITION_SPEED * delta)
 
 	var input_dir := Input.get_vector("strafe_left", "strafe_right", "move_forward", "move_back")
-	var direction := (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
+	var direction := Vector3(input_dir.x, 0, input_dir.y).normalized()
+	if not top_down_enabled:
+		direction = (transform.basis * direction).normalized()
 	var current_speed := speed
 	if crouching:
 		current_speed = crouch_speed

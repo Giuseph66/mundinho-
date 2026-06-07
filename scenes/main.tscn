@@ -1,15 +1,18 @@
-[gd_scene load_steps=5 format=3 uid="uid://xaxmcasvr1n4"]
+[gd_scene load_steps=6 format=3 uid="uid://xaxmcasvr1n4"]
 
 [ext_resource type="PackedScene" uid="uid://dt1ucdov0lg5n" path="res://scenes/world.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2"]
 [ext_resource type="Script" path="res://scripts/menu_style_loader.gd" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/npcs.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/maze.tscn" id="5"]
 
 [node name="Main" type="Node3D" unique_id=1254629943]
 script = ExtResource("3")
 
 [node name="World" parent="." unique_id=514715158 instance=ExtResource("1")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.382398, 0.18314135, -0.32517838)
+
+[node name="Maze" parent="." instance=ExtResource("5")]
 
 [node name="Player" parent="." unique_id=472969191 instance=ExtResource("2")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12, 0)
