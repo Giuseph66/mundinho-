@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://ssius3mp7y62"]
+
+[ext_resource type="Script" uid="uid://bx102tykue102" path="res://scripts/mansion_gen.gd" id="1"]
+
+[node name="Mansion" type="Node3D" unique_id=1022440649]
+script = ExtResource("1")

@@ -2,13 +2,19 @@
 extends Node3D
 
 @export_tool_button("Gerar / Atualizar Labirinto") var regenerate_action: Callable = regenerate
+@export var active: bool = true:
+	set(value):
+		active = value
+		_apply_active()
 @export_range(3, 25, 2) var width: int = 9
 @export_range(3, 25, 2) var height: int = 9
 @export_range(1.0, 6.0, 0.1) var cell_size: float = 3.5
 @export_range(1.0, 20.0, 0.1) var wall_height: float = 6.0
 @export_range(0.1, 2.0, 0.05) var wall_thickness: float = 0.4
 @export var seed: int = 1
-@export var wall_color: Color = Color(0.22, 0.2, 0.18)
+@export var wall_color: Color = Color(0.12, 0.35, 0.12)
+@export var wall_line_color: Color = Color(0.02, 0.12, 0.03)
+@export_range(0.5, 12.0, 0.1) var wall_texture_scale: float = 4.5
 @export var guide_color: Color = Color(1.0, 0.85, 0.05)
 
 const FLOOR_RAY_UP := 80.0
@@ -16,9 +22,11 @@ const FLOOR_RAY_DOWN := 200.0
 const FLOOR_SINK := 0.3
 const GUIDE_Y_OFFSET := 0.35
 const DEFAULT_GUIDE_COLOR := Color(1.0, 0.85, 0.05)
+const WALL_SHADER := preload("res://shaders/maze_wall.gdshader")
 
 var solution_path: Array[Vector2i] = []
 var guide_node: Node3D = null
+var wall_index: int = 0
 
 func _ready() -> void:
 	_ensure_runtime_input()
@@ -29,10 +37,13 @@ func _process(_delta: float) -> void:
 		_toggle_guide()
 	if InputMap.has_action("randomize_maze") and Input.is_action_just_pressed("randomize_maze"):
 		_randomize_seed()
+	if InputMap.has_action("toggle_maze") and Input.is_action_just_pressed("toggle_maze"):
+		_toggle_active()
 
 func _ensure_runtime_input() -> void:
 	_add_runtime_key("maze_guide", KEY_END)
 	_add_runtime_key("randomize_maze", KEY_L)
+	_add_runtime_key("toggle_maze", KEY_K)
 
 func _add_runtime_key(action: StringName, keycode: Key) -> void:
 	if InputMap.has_action(action):
@@ -45,8 +56,11 @@ func _add_runtime_key(action: StringName, keycode: Key) -> void:
 func regenerate() -> void:
 	if not is_inside_tree():
 		return
+	wall_index = 0
 	for child in get_children():
 		child.queue_free()
+	if not active:
+		return
 
 	var vertical_walls: Array[Array] = []
 	var horizontal_walls: Array[Array] = []
@@ -66,6 +80,7 @@ func regenerate() -> void:
 	horizontal_walls[height][width - 1] = false
 	_build_walls(vertical_walls, horizontal_walls)
 	_build_guide()
+	_apply_active()
 
 func _carve_maze(vertical_walls: Array[Array], horizontal_walls: Array[Array]) -> Array[Vector2i]:
 	var rng := RandomNumberGenerator.new()
@@ -122,9 +137,7 @@ func _get_solution_path(came_from: Dictionary) -> Array[Vector2i]:
 	return path
 
 func _build_walls(vertical_walls: Array[Array], horizontal_walls: Array[Array]) -> void:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = wall_color
-	material.roughness = 0.85
+	var material := _build_wall_material()
 
 	for z in range(height):
 		for x in range(width + 1):
@@ -138,10 +151,11 @@ func _build_walls(vertical_walls: Array[Array], horizontal_walls: Array[Array]) 
 				var pos := Vector3((x - width * 0.5 + 0.5) * cell_size, 0, (z - height * 0.5) * cell_size)
 				_add_wall(pos, Vector3(cell_size + wall_thickness, wall_height, wall_thickness), material)
 
-func _add_wall(local_pos: Vector3, box_size: Vector3, material: StandardMaterial3D) -> void:
+func _add_wall(local_pos: Vector3, box_size: Vector3, material: Material) -> void:
 	var floor_y := _find_floor_y(local_pos)
 	var body := StaticBody3D.new()
-	body.name = "Wall"
+	body.name = "Wall%s" % wall_index
+	wall_index += 1
 	body.position = Vector3(local_pos.x, floor_y + wall_height * 0.5 - FLOOR_SINK, local_pos.z)
 
 	var collision := CollisionShape3D.new()
@@ -162,6 +176,14 @@ func _add_wall(local_pos: Vector3, box_size: Vector3, material: StandardMaterial
 		body.owner = get_tree().edited_scene_root
 		collision.owner = get_tree().edited_scene_root
 		mesh_instance.owner = get_tree().edited_scene_root
+
+func _build_wall_material() -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = WALL_SHADER
+	material.set_shader_parameter("base_color", wall_color)
+	material.set_shader_parameter("line_color", wall_line_color)
+	material.set_shader_parameter("brick_scale", wall_texture_scale)
+	return material
 
 func _build_guide() -> void:
 	guide_node = Node3D.new()
@@ -197,6 +219,25 @@ func _toggle_guide() -> void:
 	if guide_node == null:
 		return
 	guide_node.visible = not guide_node.visible
+
+## Tecla K: some com o labirinto (visual + colisão) sem precisar editar a
+## cena — útil pra testar a mansão sem o labirinto no caminho. Esconder só o
+## visual deixaria paredes invisíveis travando o personagem; por isso também
+## desliga cada CollisionShape3D da subárvore.
+func _toggle_active() -> void:
+	active = not active
+	if active and get_child_count() == 0:
+		regenerate()
+
+func _apply_active() -> void:
+	visible = active
+	_set_collision_enabled(self, active)
+
+func _set_collision_enabled(node: Node, enabled: bool) -> void:
+	if node is CollisionShape3D:
+		(node as CollisionShape3D).disabled = not enabled
+	for child in node.get_children():
+		_set_collision_enabled(child, enabled)
 
 func _randomize_seed() -> void:
 	seed = randi()

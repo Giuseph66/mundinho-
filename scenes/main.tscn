@@ -1,10 +1,16 @@
-[gd_scene load_steps=6 format=3 uid="uid://xaxmcasvr1n4"]
+[gd_scene format=3 uid="uid://xaxmcasvr1n4"]
 
 [ext_resource type="PackedScene" uid="uid://dt1ucdov0lg5n" path="res://scenes/world.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2"]
-[ext_resource type="Script" path="res://scripts/menu_style_loader.gd" id="3"]
+[ext_resource type="Script" uid="uid://bomfugpu8n4pb" path="res://scripts/menu_style_loader.gd" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/npcs.tscn" id="4"]
-[ext_resource type="PackedScene" path="res://scenes/maze.tscn" id="5"]
+[ext_resource type="PackedScene" uid="uid://vwgwoua31gs2" path="res://scenes/maze.tscn" id="5"]
+[ext_resource type="PackedScene" uid="uid://ssius3mp7y62" path="res://scenes/mansion.tscn" id="6"]
+[ext_resource type="PackedScene" uid="uid://3gdl4llpoey2" path="res://scenes/mobs/SpiderEnemy.tscn" id="7_spider"]
+[ext_resource type="PackedScene" uid="uid://bh4bs1i431nw0" path="res://scenes/item_menu.tscn" id="8_choun"]
+[ext_resource type="Script" uid="uid://8sreyxvr02qk" path="res://scripts/item_menu.gd" id="9_ya4ey"]
+[ext_resource type="PackedScene" path="res://scenes/character_spawner.tscn" id="10_spawn"]
+[ext_resource type="PackedScene" path="res://scenes/character_select.tscn" id="11_select"]
 
 [node name="Main" type="Node3D" unique_id=1254629943]
 script = ExtResource("3")
@@ -12,10 +18,33 @@ script = ExtResource("3")
 [node name="World" parent="." unique_id=514715158 instance=ExtResource("1")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.382398, 0.18314135, -0.32517838)
 
-[node name="Maze" parent="." instance=ExtResource("5")]
+[node name="Maze" parent="." unique_id=65184136 instance=ExtResource("5")]
+visible = false
+active = false
+width = 9
+height = 9
+
+[node name="Mansion" parent="." unique_id=1460597752 instance=ExtResource("6")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0, 0)
+visible = false
+active = false
+floor_count = 5
 
 [node name="Player" parent="." unique_id=472969191 instance=ExtResource("2")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12, 0)
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 24, 12, 18)
 
-[node name="NPCs" parent="." instance=ExtResource("4")]
+[node name="SpiderEnemy" parent="." unique_id=1375684814 instance=ExtResource("7_spider")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 3, 9)
+
+[node name="SpiderEnemy2" parent="." unique_id=847783564 instance=ExtResource("7_spider")]
+transform = Transform3D(0.70710677, 0, -0.70710677, 0, 1, 0, 0.70710677, 0, 0.70710677, 30, 3, 8)
+
+[node name="NPCs" parent="." unique_id=1108458688 instance=ExtResource("4")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11, 0)
+
+[node name="ItemMenu" type="CanvasLayer" parent="." unique_id=1708106440 instance=ExtResource("8_choun")]
+script = ExtResource("9_ya4ey")
+
+[node name="CharacterSpawner" parent="." instance=ExtResource("10_spawn")]
+
+[node name="CharacterSelect" parent="." instance=ExtResource("11_select")]

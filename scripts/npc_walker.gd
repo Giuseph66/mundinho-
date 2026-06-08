@@ -23,6 +23,81 @@ const SHARED_ANIMATION_SOURCE := "res://assets/models/quaternius_universal_anima
 const EXTRA_ANIMATION_SOURCE := "res://assets/models/quaternius_universal_animation_library_1/UAL1_Standard.glb"
 const EXTRA_ANIMATION_LIBRARY_NAME := "UAL1"
 
+## Capoeira baixada do Mixamo: esqueleto "mixamorig_*" tem ossos com nomes E
+## rests (poses de descanso) diferentes do esqueleto Quaternius do personagem.
+## _import_animation_library só troca o caminho do nó; aqui também traduzimos
+## osso a osso (MIXAMO_TO_QUATERNIUS_BONES) e corrigimos a rotação pela
+## diferença de rest entre os dois esqueletos (ver _remap_animation_bones).
+const CAPOEIRA_ANIMATION_SOURCE := "res://assets/animations/mixamo_capoeira/Capoeira.fbx"
+const CAPOEIRA_ANIMATION_LIBRARY := "Mixamo"
+const CAPOEIRA_ANIMATION_NAME := "Capoeira"
+const MIXAMO_TO_QUATERNIUS_BONES := {
+	"mixamorig_Hips": "pelvis",
+	"mixamorig_Spine": "spine_01",
+	"mixamorig_Spine1": "spine_02",
+	"mixamorig_Spine2": "spine_03",
+	"mixamorig_Neck": "neck_01",
+	"mixamorig_Head": "Head",
+	"mixamorig_RightShoulder": "clavicle_r",
+	"mixamorig_RightArm": "upperarm_r",
+	"mixamorig_RightForeArm": "lowerarm_r",
+	"mixamorig_RightHand": "hand_r",
+	"mixamorig_RightHandThumb1": "thumb_01_r",
+	"mixamorig_RightHandThumb2": "thumb_02_r",
+	"mixamorig_RightHandThumb3": "thumb_03_r",
+	"mixamorig_RightHandThumb4": "thumb_04_leaf_r",
+	"mixamorig_RightHandIndex1": "index_01_r",
+	"mixamorig_RightHandIndex2": "index_02_r",
+	"mixamorig_RightHandIndex3": "index_03_r",
+	"mixamorig_RightHandIndex4": "index_04_leaf_r",
+	"mixamorig_RightHandMiddle1": "middle_01_r",
+	"mixamorig_RightHandMiddle2": "middle_02_r",
+	"mixamorig_RightHandMiddle3": "middle_03_r",
+	"mixamorig_RightHandMiddle4": "middle_04_leaf_r",
+	"mixamorig_RightHandRing1": "ring_01_r",
+	"mixamorig_RightHandRing2": "ring_02_r",
+	"mixamorig_RightHandRing3": "ring_03_r",
+	"mixamorig_RightHandRing4": "ring_04_leaf_r",
+	"mixamorig_RightHandPinky1": "pinky_01_r",
+	"mixamorig_RightHandPinky2": "pinky_02_r",
+	"mixamorig_RightHandPinky3": "pinky_03_r",
+	"mixamorig_RightHandPinky4": "pinky_04_leaf_r",
+	"mixamorig_LeftShoulder": "clavicle_l",
+	"mixamorig_LeftArm": "upperarm_l",
+	"mixamorig_LeftForeArm": "lowerarm_l",
+	"mixamorig_LeftHand": "hand_l",
+	"mixamorig_LeftHandThumb1": "thumb_01_l",
+	"mixamorig_LeftHandThumb2": "thumb_02_l",
+	"mixamorig_LeftHandThumb3": "thumb_03_l",
+	"mixamorig_LeftHandThumb4": "thumb_04_leaf_l",
+	"mixamorig_LeftHandIndex1": "index_01_l",
+	"mixamorig_LeftHandIndex2": "index_02_l",
+	"mixamorig_LeftHandIndex3": "index_03_l",
+	"mixamorig_LeftHandIndex4": "index_04_leaf_l",
+	"mixamorig_LeftHandMiddle1": "middle_01_l",
+	"mixamorig_LeftHandMiddle2": "middle_02_l",
+	"mixamorig_LeftHandMiddle3": "middle_03_l",
+	"mixamorig_LeftHandMiddle4": "middle_04_leaf_l",
+	"mixamorig_LeftHandRing1": "ring_01_l",
+	"mixamorig_LeftHandRing2": "ring_02_l",
+	"mixamorig_LeftHandRing3": "ring_03_l",
+	"mixamorig_LeftHandRing4": "ring_04_leaf_l",
+	"mixamorig_LeftHandPinky1": "pinky_01_l",
+	"mixamorig_LeftHandPinky2": "pinky_02_l",
+	"mixamorig_LeftHandPinky3": "pinky_03_l",
+	"mixamorig_LeftHandPinky4": "pinky_04_leaf_l",
+	"mixamorig_RightUpLeg": "thigh_r",
+	"mixamorig_RightLeg": "calf_r",
+	"mixamorig_RightFoot": "foot_r",
+	"mixamorig_RightToeBase": "ball_r",
+	"mixamorig_RightToe_End": "ball_leaf_r",
+	"mixamorig_LeftUpLeg": "thigh_l",
+	"mixamorig_LeftLeg": "calf_l",
+	"mixamorig_LeftFoot": "foot_l",
+	"mixamorig_LeftToeBase": "ball_l",
+	"mixamorig_LeftToe_End": "ball_leaf_l",
+}
+
 const GROUP_NAME := "npc_walker"
 
 ## Sequência completa de pulo (início no chão → loop no ar → aterrissagem),
@@ -62,6 +137,7 @@ var home_position: Vector3
 var target_position: Vector3
 var pause_timer: float = 0.0
 var current_player: AnimationPlayer = null
+var current_skeleton: Skeleton3D = null
 var override_animation: String = ""
 var override_keep_moving: bool = false
 var jump_requested: bool = false
@@ -79,6 +155,8 @@ var stuck_reference_position: Vector3 = Vector3.ZERO
 ## Enquanto possuído, a IA de passeio para e o movimento vem do input do jogador.
 var is_possessed: bool = false
 var possessed_locomotion_state: String = ""
+## Tecla C: toca a Capoeira (Mixamo) como "emote" — anda/pula cancela.
+var is_dancing: bool = false
 
 @onready var model_root: Node3D = $ModelRoot
 @onready var camera_rig: Node3D = $CameraRig
@@ -148,6 +226,7 @@ func start_possession() -> void:
 	override_keep_moving = false
 	override_speed_multiplier = 1.0
 	possessed_locomotion_state = ""
+	is_dancing = false
 	camera_spring_arm.rotation = Vector3(deg_to_rad(-12.0), 0.0, 0.0)
 	possession_camera.current = true
 	_play_idle_animation(current_player)
@@ -290,6 +369,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			deg_to_rad(POSSESSION_PITCH_MIN),
 			deg_to_rad(POSSESSION_PITCH_MAX),
 		)
+	if event.is_action_pressed("dance") and not is_dancing and jump_phase == JumpPhase.NONE:
+		is_dancing = true
+		possessed_locomotion_state = ""
+		_play_override(CAPOEIRA_ANIMATION_NAME)
 
 ## Controle manual: mesmas teclas do player (WASD, Shift corre, Ctrl agacha,
 ## Espaço pula), movendo-se em relação à direção da câmera (convenção de
@@ -345,7 +428,21 @@ func _physics_process_possessed(delta: float) -> void:
 func _update_possessed_animation(moving: bool, sprinting: bool, crouching: bool) -> void:
 	if jump_phase != JumpPhase.NONE:
 		possessed_locomotion_state = ""
+		is_dancing = false
 		return
+
+	if is_dancing:
+		# Andar cancela o emote; clipe terminando sozinho também libera o estado.
+		if moving or current_player == null or not current_player.is_playing():
+			is_dancing = false
+			# A Capoeira mexe dedo a dedo, coluna etc. — ossos que Walk/Run/Idle
+			# não têm trilha ficam "presos" na última pose dela (corcunda,
+			# dedos contraídos). Volta tudo pro rest antes de retomar a
+			# locomoção; a animação seguinte sobrescreve o que precisa.
+			if current_skeleton != null:
+				current_skeleton.reset_bone_poses()
+		else:
+			return
 
 	var desired := "idle"
 	if moving:
@@ -406,17 +503,71 @@ func _spawn_model() -> void:
 	var player := _pick_usable_player(players)
 	var skeleton := _find_skeleton(instance)
 
-	if player == null:
-		player = AnimationPlayer.new()
-		instance.add_child(player)
-		if skeleton != null:
-			_import_animation_library(instance, skeleton, player, SHARED_ANIMATION_SOURCE, "")
+	# Modelos baixados do Mixamo vêm com esqueleto "mixamorig_"/"mixamorig1_" e
+	# SEM as animações do jogo (Walk/Run/Idle/Jump... estão nas libs Quaternius,
+	# com outros nomes de osso). Pra esses, retargetamos a biblioteca Quaternius
+	# inteira pro rig deles (osso a osso + correção de rest), em vez do remap de
+	# caminho simples — que só serve quando os nomes de osso já batem.
+	var mixamo_prefix := _detect_mixamo_prefix(skeleton)
 
-	if skeleton != null:
-		_import_animation_library(instance, skeleton, player, EXTRA_ANIMATION_SOURCE, EXTRA_ANIMATION_LIBRARY_NAME)
+	if skeleton != null and mixamo_prefix != "":
+		if player == null:
+			player = AnimationPlayer.new()
+			instance.add_child(player)
+		var quaternius_to_target := _build_quaternius_to_mixamo_map(mixamo_prefix)
+		_import_retargeted_library(instance, skeleton, player, SHARED_ANIMATION_SOURCE, "", quaternius_to_target)
+		_import_retargeted_library(instance, skeleton, player, EXTRA_ANIMATION_SOURCE, EXTRA_ANIMATION_LIBRARY_NAME, quaternius_to_target)
+		# Capoeira é Mixamo ("mixamorig_") -> rig Mixamo do char (prefixo dele):
+		# mesmo rig na prática, só o prefixo muda; o retarget vira quase identidade.
+		var capoeira_to_target := _build_capoeira_to_mixamo_map(mixamo_prefix)
+		_import_retargeted_animation(instance, skeleton, player, CAPOEIRA_ANIMATION_SOURCE, CAPOEIRA_ANIMATION_LIBRARY, CAPOEIRA_ANIMATION_NAME, capoeira_to_target)
+	else:
+		if player == null:
+			player = AnimationPlayer.new()
+			instance.add_child(player)
+			if skeleton != null:
+				_import_animation_library(instance, skeleton, player, SHARED_ANIMATION_SOURCE, "")
+		if skeleton != null:
+			_import_animation_library(instance, skeleton, player, EXTRA_ANIMATION_SOURCE, EXTRA_ANIMATION_LIBRARY_NAME)
+			_import_retargeted_animation(instance, skeleton, player, CAPOEIRA_ANIMATION_SOURCE, CAPOEIRA_ANIMATION_LIBRARY, CAPOEIRA_ANIMATION_NAME, MIXAMO_TO_QUATERNIUS_BONES)
 
 	current_player = player
+	current_skeleton = skeleton
 	_play_walk_animation(player)
+
+## Detecta o prefixo do esqueleto Mixamo ("mixamorig_" ou "mixamorig1_" — o "1"
+## aparece quando o download cria um namespace numerado). Retorna "" se for um
+## esqueleto não-Mixamo (ex.: Quaternius), sinalizando o caminho de import normal.
+func _detect_mixamo_prefix(skeleton: Skeleton3D) -> String:
+	if skeleton == null:
+		return ""
+	for i in skeleton.get_bone_count():
+		var bone_name := skeleton.get_bone_name(i)
+		if bone_name.begins_with("mixamorig") and bone_name.ends_with("Hips"):
+			return bone_name.substr(0, bone_name.length() - 4)  # tira "Hips"
+	return ""
+
+## Mapa osso-de-origem Quaternius -> osso-de-destino Mixamo (com o prefixo do
+## char). Invertendo MIXAMO_TO_QUATERNIUS_BONES e trocando "mixamorig_" pelo
+## prefixo real. Usado pra retargetar a locomoção Quaternius pro rig Mixamo.
+func _build_quaternius_to_mixamo_map(prefix: String) -> Dictionary:
+	var result := {}
+	for mixamo_bone in MIXAMO_TO_QUATERNIUS_BONES:
+		var quaternius_bone: String = MIXAMO_TO_QUATERNIUS_BONES[mixamo_bone]
+		result[quaternius_bone] = mixamo_bone.replace("mixamorig_", prefix)
+	return result
+
+## Mapa pra Capoeira: trilhas vêm com "mixamorig_*"; troca pro prefixo do char.
+func _build_capoeira_to_mixamo_map(prefix: String) -> Dictionary:
+	if prefix == "mixamorig_":
+		var identity := {}
+		for mixamo_bone in MIXAMO_TO_QUATERNIUS_BONES:
+			identity[mixamo_bone] = mixamo_bone
+		return identity
+	var result := {}
+	for mixamo_bone in MIXAMO_TO_QUATERNIUS_BONES:
+		result[mixamo_bone] = mixamo_bone.replace("mixamorig_", prefix)
+	return result
 
 # --- Escala / posicionamento (mesma lógica do ModelViewer) -------------------
 
@@ -518,6 +669,151 @@ func _remap_skeleton_tracks(animation: Animation, from_path: String, to_path: St
 			continue
 		var rest := "" if colon_idx == -1 else path_str.substr(colon_idx)
 		animation.track_set_path(track_idx, NodePath(to_path + rest))
+
+## Importa um clipe cujo esqueleto de origem é de outro rig (ex.: Mixamo) e
+## remapeia osso a osso pro esqueleto deste modelo, usando `bone_map` (nome de
+## origem -> nome de destino) e correção de rest pose (ver _remap_animation_bones).
+## Pega o primeiro clipe da fonte e o renomeia pra `target_animation_name`.
+func _import_retargeted_animation(instance: Node3D, skeleton: Skeleton3D, player: AnimationPlayer, source_path: String, library_name: String, target_animation_name: String, bone_map: Dictionary) -> void:
+	var source := load(source_path) as PackedScene
+	if source == null:
+		return
+	var source_instance := source.instantiate()
+	var source_skeleton := _find_skeleton(source_instance)
+	var source_players: Array[AnimationPlayer] = []
+	_collect_animation_players(source_instance, source_players)
+	var source_player := _pick_usable_player(source_players)
+	if source_player == null or source_skeleton == null:
+		source_instance.queue_free()
+		return
+
+	var skeleton_path := String(instance.get_path_to(skeleton))
+
+	var merged_library: AnimationLibrary
+	if player.has_animation_library(library_name):
+		merged_library = player.get_animation_library(library_name)
+	else:
+		merged_library = AnimationLibrary.new()
+		player.add_animation_library(library_name, merged_library)
+
+	var picked := false
+	for source_lib_name in source_player.get_animation_library_list():
+		if picked:
+			break
+		var source_library := source_player.get_animation_library(source_lib_name)
+		for anim_name in source_library.get_animation_list():
+			var remapped_animation: Animation = source_library.get_animation(anim_name).duplicate(true)
+			_remap_animation_bones(remapped_animation, skeleton_path, source_skeleton, skeleton, bone_map)
+			var clip_name: String = target_animation_name
+			merged_library.add_animation(clip_name, remapped_animation)
+			picked = true
+			break
+
+	source_instance.queue_free()
+
+## Como _import_animation_library, mas retargeta osso a osso (bone_map + correção
+## de rest) em vez de só remapear o caminho do nó — pra trazer a biblioteca
+## Quaternius inteira (Walk/Run/Idle/Jump/Crouch...) pro rig Mixamo do char,
+## preservando os nomes dos clipes (o código de locomoção/posse os procura por
+## nome). Junta todas as libs da origem numa só `library_name`.
+func _import_retargeted_library(instance: Node3D, skeleton: Skeleton3D, player: AnimationPlayer, source_path: String, library_name: String, bone_map: Dictionary) -> void:
+	var source := load(source_path) as PackedScene
+	if source == null:
+		return
+	var source_instance := source.instantiate()
+	var source_skeleton := _find_skeleton(source_instance)
+	var source_players: Array[AnimationPlayer] = []
+	_collect_animation_players(source_instance, source_players)
+	var source_player := _pick_usable_player(source_players)
+	if source_player == null or source_skeleton == null:
+		source_instance.queue_free()
+		return
+
+	var skeleton_path := String(instance.get_path_to(skeleton))
+
+	var merged_library: AnimationLibrary
+	if player.has_animation_library(library_name):
+		merged_library = player.get_animation_library(library_name)
+	else:
+		merged_library = AnimationLibrary.new()
+		player.add_animation_library(library_name, merged_library)
+
+	for source_lib_name in source_player.get_animation_library_list():
+		var source_library := source_player.get_animation_library(source_lib_name)
+		for anim_name in source_library.get_animation_list():
+			if merged_library.has_animation(anim_name):
+				continue
+			var remapped_animation: Animation = source_library.get_animation(anim_name).duplicate(true)
+			_remap_animation_bones(remapped_animation, skeleton_path, source_skeleton, skeleton, bone_map)
+			merged_library.add_animation(anim_name, remapped_animation)
+
+	source_instance.queue_free()
+
+## Traduz trilhas de ROTAÇÃO de ossos de `source_skeleton` (caminhos tipo
+## "Armature/Skeleton3D:mixamorig_Hips") pro esqueleto deste modelo, usando
+## `bone_map`. Descarta posição/escala (emote no lugar) e ossos sem mapeamento.
+##
+## RETARGET de verdade: os dois rigs têm rest poses diferentes (Mixamo T-pose,
+## Quaternius A-pose) e convenções de eixo de osso diferentes. Copiar a rotação
+## crua iguala a BASE global do osso, mas como a geometria do membro pende de
+## eixos locais diferentes, o membro aponta torto. O certo é transferir o DELTA
+## de cada osso em relação ao SEU rest: o quanto o osso girou a partir do rest
+## no Mixamo, aplicar a partir do rest do nosso rig.
+##
+## Deriva (queremos G_alvo(b) = G_origem(b) · Rg_origem(b)⁻¹ · Rg_alvo(b), i.e.
+## mesmo delta global a partir do rest), e como local = G(pai)⁻¹ · G(osso):
+##   local_alvo(b) = Rg_alvo(pai)⁻¹ · Rg_origem(pai) · valor · Rg_origem(b)⁻¹ · Rg_alvo(b)
+## onde Rg = rest global (rotação acumulada da raiz até o osso). Tudo só com
+## dados de rest => dá pra computar por trilha, independente. Pro osso raiz
+## (Mixamo Hips, sem pai) Rg_origem(pai)=identidade e o pai-alvo é o `root`
+## (rest -90° X) — o pre-fator vira a inversa disso, cancelando o "deitado".
+func _remap_animation_bones(animation: Animation, skeleton_path: String, source_skeleton: Skeleton3D, target_skeleton: Skeleton3D, bone_map: Dictionary) -> void:
+	var track_idx := 0
+	while track_idx < animation.get_track_count():
+		var path_str := String(animation.track_get_path(track_idx))
+		var colon_idx := path_str.find(":")
+		if colon_idx == -1:
+			animation.remove_track(track_idx)
+			continue
+		var bone_name := path_str.substr(colon_idx + 1)
+
+		if animation.track_get_type(track_idx) != Animation.TYPE_ROTATION_3D or not bone_map.has(bone_name):
+			animation.remove_track(track_idx)
+			continue
+
+		var target_bone_name: String = bone_map[bone_name]
+		var source_bone_idx := source_skeleton.find_bone(bone_name)
+		var target_bone_idx := target_skeleton.find_bone(target_bone_name)
+		if source_bone_idx == -1 or target_bone_idx == -1:
+			animation.remove_track(track_idx)
+			continue
+
+		var source_parent_idx := source_skeleton.get_bone_parent(source_bone_idx)
+		var target_parent_idx := target_skeleton.get_bone_parent(target_bone_idx)
+		var rg_source_bone := _global_rest_rotation(source_skeleton, source_bone_idx)
+		var rg_target_bone := _global_rest_rotation(target_skeleton, target_bone_idx)
+		var rg_source_parent := Quaternion.IDENTITY if source_parent_idx == -1 else _global_rest_rotation(source_skeleton, source_parent_idx)
+		var rg_target_parent := Quaternion.IDENTITY if target_parent_idx == -1 else _global_rest_rotation(target_skeleton, target_parent_idx)
+
+		var pre := rg_target_parent.inverse() * rg_source_parent
+		var post := rg_source_bone.inverse() * rg_target_bone
+
+		for key_idx in animation.track_get_key_count(track_idx):
+			var original: Quaternion = animation.track_get_key_value(track_idx, key_idx)
+			animation.track_set_key_value(track_idx, key_idx, pre * original * post)
+
+		animation.track_set_path(track_idx, NodePath(skeleton_path + ":" + target_bone_name))
+		track_idx += 1
+
+## Rotação "rest global" de `bone_idx` — composição do rest dele com o de todos
+## os seus ancestrais (da raiz até o osso, ignorando a pose da animação).
+func _global_rest_rotation(skeleton: Skeleton3D, bone_idx: int) -> Quaternion:
+	var rotation := Quaternion.IDENTITY
+	var idx := bone_idx
+	while idx != -1:
+		rotation = skeleton.get_bone_rest(idx).basis.get_rotation_quaternion() * rotation
+		idx = skeleton.get_bone_parent(idx)
+	return rotation
 
 func _play_walk_animation(player: AnimationPlayer) -> void:
 	if player == null:

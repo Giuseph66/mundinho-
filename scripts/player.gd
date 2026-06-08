@@ -28,6 +28,8 @@ var is_controlling: bool = true
 var possessed_npc: CharacterBody3D = null
 var nearby_npc: CharacterBody3D = null
 var top_down_enabled: bool = false
+var hp: int = 5
+var damage_cooldown: float = 0.0
 
 @onready var camera: Camera3D = $Camera3D
 @onready var top_down_camera: Camera3D = $TopDownCamera3D
@@ -108,6 +110,21 @@ func _toggle_possession() -> void:
 		is_controlling = true
 		_apply_camera_mode()
 
+## Assume um NPC específico (usado pelo menu de seleção de personagem, tanto no
+## início quanto reaberto durante o jogo pra trocar). Se já estiver possuindo
+## outro, devolve a IA a ele antes de assumir o novo.
+func possess_specific(npc: CharacterBody3D) -> void:
+	if npc == null or npc == possessed_npc:
+		return
+	if not is_controlling and possessed_npc != null:
+		possessed_npc.stop_possession()
+	possessed_npc = npc
+	possessed_npc.start_possession()
+	is_controlling = false
+	camera.current = false
+	possess_prompt.visible = false
+	nearby_npc = null
+
 func _apply_camera_mode() -> void:
 	camera.current = is_controlling and not top_down_enabled
 	top_down_camera.current = is_controlling and top_down_enabled
@@ -133,6 +150,8 @@ func _update_possess_prompt() -> void:
 func _physics_process(delta: float) -> void:
 	if not is_controlling:
 		return
+	if damage_cooldown > 0.0:
+		damage_cooldown -= delta
 
 	_update_top_down_camera()
 	_update_possess_prompt()
@@ -167,3 +186,13 @@ func _physics_process(delta: float) -> void:
 		velocity.z = move_toward(velocity.z, 0, current_speed)
 
 	move_and_slide()
+
+func take_damage(amount: int = 1) -> void:
+	if damage_cooldown > 0.0:
+		return
+	hp = max(hp - amount, 0)
+	damage_cooldown = 1.0
+	if hp <= 0:
+		global_position = Vector3(24, 12, 18)
+		hp = 5
+		_snap_to_ground.call_deferred()
