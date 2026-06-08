@@ -11,6 +11,7 @@
 [ext_resource type="Script" uid="uid://8sreyxvr02qk" path="res://scripts/item_menu.gd" id="9_ya4ey"]
 [ext_resource type="PackedScene" path="res://scenes/character_spawner.tscn" id="10_spawn"]
 [ext_resource type="PackedScene" path="res://scenes/character_select.tscn" id="11_select"]
+[ext_resource type="Script" uid="uid://cb1mwjdennnb1" path="res://scripts/network_game.gd" id="12_network"]
 
 [node name="Main" type="Node3D" unique_id=1254629943]
 script = ExtResource("3")
@@ -42,9 +43,14 @@ transform = Transform3D(0.70710677, 0, -0.70710677, 0, 1, 0, 0.70710677, 0, 0.70
 [node name="NPCs" parent="." unique_id=1108458688 instance=ExtResource("4")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11, 0)
 
-[node name="ItemMenu" type="CanvasLayer" parent="." unique_id=1708106440 instance=ExtResource("8_choun")]
+[node name="CharacterSpawner" parent="." unique_id=2077981618 instance=ExtResource("10_spawn")]
+
+[node name="CharacterSelect" parent="." unique_id=779005852 instance=ExtResource("11_select")]
+
+[node name="NetworkGame" type="Node" parent="." unique_id=1060381028]
+script = ExtResource("12_network")
+bot_count = 1
+bot_character_names = PackedStringArray()
+
+[node name="ItemMenu" type="CanvasLayer" parent="." unique_id=1696268353 instance=ExtResource("8_choun")]
 script = ExtResource("9_ya4ey")
-
-[node name="CharacterSpawner" parent="." instance=ExtResource("10_spawn")]
-
-[node name="CharacterSelect" parent="." instance=ExtResource("11_select")]

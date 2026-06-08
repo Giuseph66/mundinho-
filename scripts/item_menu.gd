@@ -1,6 +1,17 @@
 extends CanvasLayer
 
-@export var items: Array[String] = ["Madeira", "Pedra", "Comida", "Ferramenta", "Semente", "Corda"]
+@export var items: Array[String] = []
+
+## Slot único de arma (espelha as constantes WEAPON_* de npc_walker.gd — não
+## importamos o script só por essas strings, mesmo padrão de nomes de clipe
+## hardcoded usado no resto deste arquivo). Cada botão chama equip_weapon()
+## no NPC possuído; só uma fica "pressionada" por vez (mochila = seletor).
+const WEAPON_OPTIONS: Array[Dictionary] = [
+	{"id": "sword", "label": "Espada"},
+	{"id": "dagger", "label": "Adaga"},
+	{"id": "firearm", "label": "Arma de fogo"},
+	{"id": "none", "label": "Desarmar"},
+]
 
 ## Clipes que envolvem locomoção: o NPC continua andando pelo mundo enquanto
 ## toca esse clipe (não congela no lugar).
@@ -64,6 +75,7 @@ const STATIONARY_ANIMATIONS: Array[String] = [
 ## o NPC deve continuar andando enquanto o clipe toca.
 var _option_anim_names: Array[String] = []
 var _option_keep_moving: Array[bool] = []
+var _weapon_buttons: Dictionary = {}
 
 @onready var grid: GridContainer = $PanelContainer/MarginContainer/VBoxContainer/GridContainer
 @onready var close_button: Button = $PanelContainer/MarginContainer/VBoxContainer/Header/CloseButton
@@ -75,6 +87,7 @@ func _ready() -> void:
 	visible = false
 	close_button.pressed.connect(_toggle)
 	_fill_items()
+	_build_weapon_section()
 	_add_animation_group("— Andando —", WALK_ANIMATIONS, true)
 	_add_animation_group("— Parado —", STATIONARY_ANIMATIONS, false)
 	animation_option.item_selected.connect(_on_animation_selected)
@@ -86,6 +99,9 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("inventory"):
 		_toggle()
+		return
+	if _is_multiplayer_active():
+		return
 	elif event.is_action_pressed("sprint", false):
 		for npc in get_tree().get_nodes_in_group("npc_walker"):
 			npc.set_override_animation("Sprint_Loop", true, 2.2)
@@ -109,8 +125,11 @@ func _resume_npc_walk() -> void:
 
 func _toggle() -> void:
 	visible = not visible
-	get_tree().paused = visible
+	if not _is_multiplayer_active():
+		get_tree().paused = visible
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if visible else Input.MOUSE_MODE_CAPTURED
+	if visible:
+		_refresh_weapon_buttons()
 
 func _fill_items() -> void:
 	for child in grid.get_children():
@@ -121,6 +140,88 @@ func _fill_items() -> void:
 		button.text = item
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		grid.add_child(button)
+
+## Seção "arma equipada": uma fileira de botões (Espada/Adaga/Arma de fogo/
+## Desarmar) logo abaixo da grade de itens — a mochila vira o seletor de
+## arma do NPC possuído (slot único, ver equip_weapon em npc_walker.gd).
+## Construída em código e inserida no VBoxContainer existente, igual ao
+## padrão de _fill_items — evita duplicar nós em item_menu_style_wood/clean.tscn.
+func _build_weapon_section() -> void:
+	var vbox := grid.get_parent()
+	var insert_at := grid.get_index() + 1
+
+	var separator := HSeparator.new()
+	vbox.add_child(separator)
+	vbox.move_child(separator, insert_at)
+
+	var label := Label.new()
+	label.text = "Arma equipada"
+	vbox.add_child(label)
+	vbox.move_child(label, insert_at + 1)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	vbox.add_child(row)
+	vbox.move_child(row, insert_at + 2)
+
+	_weapon_buttons.clear()
+	for option in WEAPON_OPTIONS:
+		var weapon_id: String = option["id"]
+		var button := Button.new()
+		button.text = option["label"]
+		button.custom_minimum_size = Vector2(0, 40)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.toggle_mode = true
+		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		button.pressed.connect(_on_weapon_button_pressed.bind(weapon_id))
+		row.add_child(button)
+		_weapon_buttons[weapon_id] = button
+
+## Equipa a arma escolhida no NPC possuído pelo jogador (acessível via
+## player.possessed_npc — o player fica no grupo "player", mesmo acesso
+## usado por character_spawner.gd). Sem possessão ativa, o clique não faz
+## nada (não há em quem equipar).
+func _on_weapon_button_pressed(weapon_id: String) -> void:
+	var network_game := _get_network_game()
+	if network_game != null and network_game.has_method("equip_local_weapon"):
+		network_game.equip_local_weapon(weapon_id)
+		_refresh_weapon_buttons()
+		return
+	var npc := _get_equip_target()
+	if npc != null and npc.has_method("equip_weapon"):
+		npc.equip_weapon(weapon_id)
+	_refresh_weapon_buttons()
+
+func _get_equip_target() -> Node:
+	var network_game := _get_network_game()
+	if network_game != null and network_game.has_method("get_local_character"):
+		return network_game.get_local_character()
+	var player := get_tree().get_first_node_in_group("player")
+	if player == null:
+		return null
+	if "possessed_npc" in player:
+		return player.possessed_npc
+	return null
+
+func _get_network_game() -> Node:
+	if not _is_multiplayer_active():
+		return null
+	return get_tree().get_first_node_in_group("network_game")
+
+func _is_multiplayer_active() -> bool:
+	var manager := get_node_or_null("/root/MultiplayerManager")
+	return manager != null and manager.has_method("is_multiplayer_active") and bool(manager.call("is_multiplayer_active"))
+
+## Mantém só o botão da arma equipada "pressionado" — usa set_pressed_no_signal
+## pra não emitir pressed acidentalmente (toggle_mode buttons emitem pressed quando
+## button_pressed é setado programaticamente no Godot 4, causando loop).
+func _refresh_weapon_buttons() -> void:
+	var npc := _get_equip_target()
+	var equipped: String = ""
+	if npc != null and "equipped_weapon" in npc:
+		equipped = npc.equipped_weapon
+	for weapon_id in _weapon_buttons:
+		(_weapon_buttons[weapon_id] as Button).set_pressed_no_signal(weapon_id == equipped)
 
 func _add_animation_group(header: String, anim_names: Array[String], keep_moving: bool) -> void:
 	animation_option.add_item(header)

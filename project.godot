@@ -11,13 +11,14 @@ config_version=5
 [application]
 
 config/name="mundionho"
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/main_menu.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
 
 InputSetup="*res://scripts/input_setup.gd"
+MultiplayerManager="*res://scripts/multiplayer_manager.gd"
 
 [physics]
 

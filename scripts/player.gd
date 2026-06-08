@@ -19,6 +19,10 @@ const CROUCH_TRANSITION_SPEED := 8.0
 
 ## Distância máxima pra ver o aviso "[F] assumir personagem" e poder possuir.
 const POSSESS_RANGE := 3.0
+const NETWORK_NONE := 0
+const NETWORK_SERVER := 1
+const NETWORK_CLIENT_LOCAL := 2
+const NETWORK_CLIENT_REMOTE := 3
 
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 
@@ -30,6 +34,10 @@ var nearby_npc: CharacterBody3D = null
 var top_down_enabled: bool = false
 var hp: int = 5
 var damage_cooldown: float = 0.0
+var network_mode := NETWORK_NONE
+var network_peer_id := 0
+var network_is_local := false
+var network_headless := false
 
 @onready var camera: Camera3D = $Camera3D
 @onready var top_down_camera: Camera3D = $TopDownCamera3D
@@ -38,19 +46,186 @@ var damage_cooldown: float = 0.0
 @onready var possess_prompt: Label = $PossessPrompt/Label
 
 func _ready() -> void:
-	if start_fullscreen and not Engine.is_editor_hint():
+	if not _ensure_runtime_nodes():
+		return
+	var headless := network_headless or _is_headless_server()
+	if start_fullscreen and not Engine.is_editor_hint() and not headless:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if not headless and (network_mode == NETWORK_NONE or network_is_local):
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	collision_shape.shape = capsule_shape
 	top_down_enabled = start_top_down
 	_update_top_down_camera()
 	_apply_camera_mode()
+	if network_mode != NETWORK_NONE:
+		_apply_network_setup()
 	# Terreno gerado por ruído pode ter ladeiras íngremes; o ângulo padrão de
 	# chão (45°) trata isso como parede e trava o personagem. Floor snap evita
 	# que pequenos ressaltos do terreno tirem o personagem do chão.
 	floor_max_angle = deg_to_rad(65.0)
 	floor_snap_length = 0.5
-	_snap_to_ground.call_deferred()
+	if network_mode == NETWORK_NONE or network_mode == NETWORK_SERVER:
+		_snap_to_ground.call_deferred()
+
+func configure_network(peer_id: int, mode: int, local_view: bool, headless: bool = false) -> void:
+	network_peer_id = peer_id
+	network_mode = mode
+	network_is_local = local_view
+	network_headless = headless
+	top_down_enabled = false
+	if is_inside_tree() and has_node("Camera3D"):
+		_apply_network_setup()
+
+func collect_network_input(seq: int) -> Dictionary:
+	if not network_is_local or network_headless:
+		return {
+			"seq": seq,
+			"move": Vector2.ZERO,
+			"jump": false,
+			"sprint": false,
+			"crouch": false,
+			"yaw": rotation.y,
+		}
+	return {
+		"seq": seq,
+		"move": Input.get_vector("strafe_left", "strafe_right", "move_forward", "move_back"),
+		"jump": Input.is_action_just_pressed("jump"),
+		"sprint": Input.is_action_pressed("sprint"),
+		"crouch": Input.is_action_pressed("crouch"),
+		"yaw": rotation.y,
+	}
+
+func apply_network_input(input: Dictionary, delta: float) -> void:
+	if not is_inside_tree():
+		return
+	if not _ensure_runtime_nodes():
+		return
+	if damage_cooldown > 0.0:
+		damage_cooldown -= delta
+
+	rotation.y = float(input.get("yaw", rotation.y))
+
+	if not is_on_floor():
+		velocity.y -= gravity * delta
+	elif bool(input.get("jump", false)):
+		velocity.y = jump_velocity
+
+	var crouching := bool(input.get("crouch", false))
+	_apply_crouch_shape(crouching, delta)
+
+	var input_dir := Vector2.ZERO
+	var raw_move = input.get("move", Vector2.ZERO)
+	if raw_move is Vector2:
+		var move_vector: Vector2 = raw_move
+		input_dir = move_vector.limit_length(1.0)
+
+	var direction := Vector3(input_dir.x, 0.0, input_dir.y)
+	if direction.length_squared() > 0.0001:
+		direction = (transform.basis * direction.normalized()).normalized()
+
+	var current_speed := speed
+	if crouching:
+		current_speed = crouch_speed
+	elif bool(input.get("sprint", false)):
+		current_speed = sprint_speed
+
+	if direction.length_squared() > 0.0001:
+		velocity.x = direction.x * current_speed
+		velocity.z = direction.z * current_speed
+	else:
+		velocity.x = move_toward(velocity.x, 0, current_speed)
+		velocity.z = move_toward(velocity.z, 0, current_speed)
+
+	move_and_slide()
+
+func apply_network_snapshot(state: Dictionary, alpha: float = 1.0) -> void:
+	if not is_inside_tree():
+		return
+	var target_position: Vector3 = state.get("pos", global_position)
+	var target_velocity: Vector3 = state.get("vel", velocity)
+	var clamped_alpha := clampf(alpha, 0.0, 1.0)
+	global_position = target_position if clamped_alpha >= 1.0 else global_position.lerp(target_position, clamped_alpha)
+	velocity = target_velocity
+	rotation.y = float(state.get("yaw", rotation.y))
+	hp = int(state.get("hp", hp))
+
+func make_network_snapshot() -> Dictionary:
+	if not is_inside_tree():
+		return {
+			"id": network_peer_id,
+			"pos": position,
+			"vel": velocity,
+			"yaw": rotation.y,
+			"hp": hp,
+		}
+	return {
+		"id": network_peer_id,
+		"pos": global_position,
+		"vel": velocity,
+		"yaw": rotation.y,
+		"hp": hp,
+	}
+
+func _apply_network_setup() -> void:
+	if not _ensure_runtime_nodes():
+		return
+	top_down_enabled = false
+	is_controlling = true
+	nearby_npc = null
+	possessed_npc = null
+	if possess_prompt != null:
+		possess_prompt.visible = false
+	camera.current = network_is_local and not network_headless
+	top_down_camera.current = false
+
+	var body_mesh := get_node_or_null("MeshInstance3D") as MeshInstance3D
+	if body_mesh != null:
+		body_mesh.visible = not network_is_local
+	var marker := get_node_or_null("LocationMarker") as MeshInstance3D
+	if marker != null:
+		marker.visible = not network_headless
+
+func _network_unhandled_input(event: InputEvent) -> void:
+	if not network_is_local or network_headless:
+		return
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		rotate_y(-event.relative.x * mouse_sensitivity)
+		camera.rotate_x(-event.relative.y * mouse_sensitivity)
+		camera.rotation.x = clampf(camera.rotation.x, deg_to_rad(-80), deg_to_rad(80))
+	if event.is_action_pressed("ui_cancel"):
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED else Input.MOUSE_MODE_CAPTURED
+
+func _apply_crouch_shape(crouching: bool, delta: float) -> void:
+	if not _ensure_runtime_nodes():
+		return
+	var target_height := CROUCH_HEIGHT if crouching else STANDING_HEIGHT
+	var target_camera_y := CROUCH_CAMERA_Y if crouching else STANDING_CAMERA_Y
+	capsule_shape.height = move_toward(capsule_shape.height, target_height, CROUCH_TRANSITION_SPEED * delta)
+	collision_shape.position.y = -(STANDING_HEIGHT - capsule_shape.height) * 0.5
+	camera.position.y = move_toward(camera.position.y, target_camera_y, CROUCH_TRANSITION_SPEED * delta)
+
+func _ensure_runtime_nodes() -> bool:
+	if collision_shape == null:
+		collision_shape = get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if camera == null:
+		camera = get_node_or_null("Camera3D") as Camera3D
+	if top_down_camera == null:
+		top_down_camera = get_node_or_null("TopDownCamera3D") as Camera3D
+	if possess_prompt == null:
+		possess_prompt = get_node_or_null("PossessPrompt/Label") as Label
+	if collision_shape == null or camera == null or top_down_camera == null:
+		return false
+	if capsule_shape == null:
+		var source_shape: CapsuleShape3D = collision_shape.shape as CapsuleShape3D
+		if source_shape == null:
+			return false
+		capsule_shape = source_shape.duplicate() as CapsuleShape3D
+		collision_shape.shape = capsule_shape
+	return true
+
+func _is_headless_server() -> bool:
+	var manager := get_node_or_null("/root/MultiplayerManager")
+	return manager != null and manager.has_method("is_headless_server") and bool(manager.call("is_headless_server"))
 
 func _snap_to_ground() -> void:
 	var space_state := get_world_3d().direct_space_state
@@ -67,6 +242,10 @@ func _snap_to_ground() -> void:
 	velocity = Vector3.ZERO
 
 func _unhandled_input(event: InputEvent) -> void:
+	if network_mode != NETWORK_NONE:
+		_network_unhandled_input(event)
+		return
+
 	if top_down_enabled and event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
 			top_down_zoom = maxf(2.0, top_down_zoom - top_down_zoom_step)
@@ -148,6 +327,9 @@ func _update_possess_prompt() -> void:
 	possess_prompt.visible = nearby_npc != null
 
 func _physics_process(delta: float) -> void:
+	if network_mode != NETWORK_NONE:
+		return
+
 	if not is_controlling:
 		return
 	if damage_cooldown > 0.0:

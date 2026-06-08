@@ -14,6 +14,7 @@ func _ready() -> void:
 	_add_key("toggle_view", KEY_TAB)
 	_add_key("maze_guide", KEY_END)
 	_add_key("randomize_maze", KEY_L)
+	_add_mouse_button("attack", MOUSE_BUTTON_LEFT)
 
 func _add_key(action: StringName, keycode: Key) -> void:
 	if InputMap.has_action(action):
@@ -21,4 +22,12 @@ func _add_key(action: StringName, keycode: Key) -> void:
 	InputMap.add_action(action)
 	var event := InputEventKey.new()
 	event.physical_keycode = keycode
+	InputMap.action_add_event(action, event)
+
+func _add_mouse_button(action: StringName, button_index: MouseButton) -> void:
+	if InputMap.has_action(action):
+		return
+	InputMap.add_action(action)
+	var event := InputEventMouseButton.new()
+	event.button_index = button_index
 	InputMap.action_add_event(action, event)
