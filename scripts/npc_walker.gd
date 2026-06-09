@@ -149,6 +149,10 @@ const BULLET_SCENE := preload("res://scenes/bullet.tscn")
 const POSSESSION_MOUSE_SENSITIVITY := 0.0025
 const POSSESSION_PITCH_MIN := -60.0
 const POSSESSION_PITCH_MAX := 10.0
+const FIRST_PERSON_PITCH_MIN := -85.0
+const FIRST_PERSON_PITCH_MAX := 85.0
+const THIRD_PERSON_SPRING_LENGTH := 4.5
+const FIRST_PERSON_SPRING_LENGTH := 0.0
 const POSSESSION_RUN_MULTIPLIER := 2.2
 const POSSESSION_CROUCH_MULTIPLIER := 0.6
 const NETWORK_NONE := 0
@@ -216,6 +220,7 @@ var stuck_reference_position: Vector3 = Vector3.ZERO
 ## Enquanto possuído, a IA de passeio para e o movimento vem do input do jogador.
 var is_possessed: bool = false
 var possessed_locomotion_state: String = ""
+var is_first_person: bool = false
 ## Tecla C: toca a Capoeira (Mixamo) como "emote" — anda/pula cancela.
 var is_dancing: bool = false
 var hp: int = MAX_HP
@@ -700,6 +705,18 @@ func _respawn_network_character() -> void:
 	velocity = Vector3.ZERO
 	_cancel_weapon_actions()
 
+# --- Câmera (1ª / 3ª pessoa) -------------------------------------------------
+
+## F5 alterna entre terceira pessoa (câmera orbitando atrás — spring_length
+## normal) e primeira pessoa (câmera no pivô da cabeça, spring_length=0).
+## Em primeira pessoa esconde o modelo — câmera está dentro do corpo, então
+## ver os próprios membros seria estranho.
+func _set_camera_mode(first_person: bool) -> void:
+	is_first_person = first_person
+	camera_spring_arm.spring_length = FIRST_PERSON_SPRING_LENGTH if first_person else THIRD_PERSON_SPRING_LENGTH
+	model_root.visible = not first_person
+	camera_spring_arm.rotation = Vector3(deg_to_rad(-12.0), 0.0, 0.0)
+
 # --- Posse (jogador assume o controle) ---------------------------------------
 
 ## Chamado pelo player ao apertar F perto do NPC. Liga a câmera de terceira
@@ -722,7 +739,7 @@ func start_possession() -> void:
 	override_speed_multiplier = 1.0
 	possessed_locomotion_state = ""
 	is_dancing = false
-	camera_spring_arm.rotation = Vector3(deg_to_rad(-12.0), 0.0, 0.0)
+	_set_camera_mode(false)
 	possession_camera.current = true
 	_play_idle_animation(current_player)
 	is_idle_animation_active = true
@@ -740,6 +757,7 @@ func stop_possession() -> void:
 	weapon_hitbox.monitoring = false
 	throw_phase = ThrowPhase.NONE
 	_reset_firearm_state()
+	_set_camera_mode(false)
 	_pick_new_target()
 
 func _play_override(anim_name: String) -> void:
@@ -886,11 +904,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		camera_rig.rotate_y(-event.relative.x * POSSESSION_MOUSE_SENSITIVITY)
+		var pitch_min := FIRST_PERSON_PITCH_MIN if is_first_person else POSSESSION_PITCH_MIN
+		var pitch_max := FIRST_PERSON_PITCH_MAX if is_first_person else POSSESSION_PITCH_MAX
 		camera_spring_arm.rotation.x = clampf(
 			camera_spring_arm.rotation.x - event.relative.y * POSSESSION_MOUSE_SENSITIVITY,
-			deg_to_rad(POSSESSION_PITCH_MIN),
-			deg_to_rad(POSSESSION_PITCH_MAX),
+			deg_to_rad(pitch_min),
+			deg_to_rad(pitch_max),
 		)
+	if event.is_action_pressed("toggle_camera"):
+		_set_camera_mode(not is_first_person)
 	if event.is_action_pressed("dance") and not is_dancing and jump_phase == JumpPhase.NONE:
 		is_dancing = true
 		possessed_locomotion_state = ""
@@ -904,11 +926,15 @@ func _network_unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		camera_rig.rotate_y(-event.relative.x * POSSESSION_MOUSE_SENSITIVITY)
+		var pitch_min := FIRST_PERSON_PITCH_MIN if is_first_person else POSSESSION_PITCH_MIN
+		var pitch_max := FIRST_PERSON_PITCH_MAX if is_first_person else POSSESSION_PITCH_MAX
 		camera_spring_arm.rotation.x = clampf(
 			camera_spring_arm.rotation.x - event.relative.y * POSSESSION_MOUSE_SENSITIVITY,
-			deg_to_rad(POSSESSION_PITCH_MIN),
-			deg_to_rad(POSSESSION_PITCH_MAX),
+			deg_to_rad(pitch_min),
+			deg_to_rad(pitch_max),
 		)
+	if event.is_action_pressed("toggle_camera"):
+		_set_camera_mode(not is_first_person)
 	if event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED else Input.MOUSE_MODE_CAPTURED
 

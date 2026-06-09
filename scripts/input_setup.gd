@@ -12,6 +12,7 @@ func _ready() -> void:
 	_add_key("possess", KEY_F)
 	_add_key("dance", KEY_C)
 	_add_key("toggle_view", KEY_TAB)
+	_add_key("toggle_camera", KEY_F5)
 	_add_key("maze_guide", KEY_END)
 	_add_key("randomize_maze", KEY_L)
 	_add_mouse_button("attack", MOUSE_BUTTON_LEFT)
