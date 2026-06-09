@@ -13,6 +13,9 @@ const SIMULATED_PLAYER_ID_START := 10000
 @export_range(0, 32, 1) var bot_count: int = 0
 @export var bot_character_names: PackedStringArray = PackedStringArray()
 @export_range(0.2, 8.0, 0.1) var bot_input_change_interval: float = 1.4
+@export_range(0.3, 12.0, 0.1) var player_walk_speed: float = 2.8
+@export_range(1.0, 5.0, 0.1) var player_run_multiplier: float = 2.2
+@export_range(0.1, 1.0, 0.1) var player_crouch_multiplier: float = 0.6
 
 const SPAWN_POINTS: Array[Vector3] = [
 	Vector3(24, 12, 18),
@@ -281,6 +284,9 @@ func _spawn_player(peer_id: int, character_name: String, mode: int, local_view: 
 	var model_path: String = String(characters_by_name.get(character_name, ""))
 	if model_path != "":
 		player.set("model_scene", load(model_path))
+	player.set("walk_speed", player_walk_speed)
+	player.set("run_multiplier", player_run_multiplier)
+	player.set("crouch_multiplier", player_crouch_multiplier)
 	if not player.has_method("configure_network"):
 		push_warning("network_game: npc.tscn sem script npc_walker.gd carregado.")
 		player.queue_free()

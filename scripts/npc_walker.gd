@@ -155,6 +155,7 @@ const THIRD_PERSON_SPRING_LENGTH := 4.5
 const FIRST_PERSON_SPRING_LENGTH := 0.0
 const POSSESSION_RUN_MULTIPLIER := 2.2
 const POSSESSION_CROUCH_MULTIPLIER := 0.6
+const CROUCH_VISUAL_TRANSITION_SPEED := 10.0
 const NETWORK_NONE := 0
 const NETWORK_SERVER := 1
 const NETWORK_CLIENT_LOCAL := 2
@@ -177,6 +178,9 @@ enum ThrowPhase { NONE, WINDUP, RELEASED }
 
 @export var model_scene: PackedScene
 @export_range(0.3, 6.0, 0.1) var walk_speed: float = 1.4
+@export_range(1.0, 5.0, 0.1) var run_multiplier: float = POSSESSION_RUN_MULTIPLIER
+@export_range(0.1, 1.0, 0.1) var crouch_multiplier: float = POSSESSION_CROUCH_MULTIPLIER
+@export_range(-2.0, 1.0, 0.05) var crouch_visual_offset_y: float = -0.5
 @export_range(2.0, 30.0, 0.5) var wander_radius: float = 6.0
 @export_range(0.5, 10.0, 0.5) var pause_time: float = 2.0
 
@@ -231,6 +235,7 @@ var network_headless := false
 var network_anim_state: String = "idle"
 var network_last_anim_state: String = ""
 var pending_network_projectiles: Array[Dictionary] = []
+var model_root_base_position: Vector3 = Vector3.ZERO
 
 @onready var model_root: Node3D = $ModelRoot
 @onready var camera_rig: Node3D = $CameraRig
@@ -265,6 +270,7 @@ func _ready() -> void:
 	# travando o NPC. Floor snap evita "pular" em pequenos ressaltos.
 	floor_max_angle = deg_to_rad(65.0)
 	floor_snap_length = 0.5
+	model_root_base_position = model_root.position
 	home_position = global_position
 	stuck_reference_position = global_position
 	_spawn_model()
@@ -349,12 +355,13 @@ func apply_network_input(input: Dictionary, delta: float) -> void:
 		direction = direction.normalized()
 
 	var crouching := bool(input.get("crouch", false))
+	_apply_crouch_visual_offset(crouching, delta)
 	var sprinting := moving and not crouching and bool(input.get("sprint", false))
 	var current_speed := walk_speed
 	if crouching:
-		current_speed = walk_speed * POSSESSION_CROUCH_MULTIPLIER
+		current_speed = walk_speed * crouch_multiplier
 	elif sprinting:
-		current_speed = walk_speed * POSSESSION_RUN_MULTIPLIER
+		current_speed = walk_speed * run_multiplier
 
 	if moving:
 		velocity.x = direction.x * current_speed
@@ -388,6 +395,7 @@ func apply_network_snapshot(state: Dictionary, alpha: float = 1.0) -> void:
 	for raw_projectile in state.get("projectiles", []):
 		if raw_projectile is Dictionary:
 			_spawn_network_projectile_visual(raw_projectile)
+	_apply_crouch_visual_offset(_anim_state_is_crouch(String(state.get("anim_state", ""))))
 	if network_is_local and possession_camera.current:
 		possession_camera.look_at(camera_rig.global_position, Vector3.UP)
 
@@ -776,16 +784,21 @@ func _apply_network_anim_state(anim_state: String) -> void:
 		return
 	network_last_anim_state = anim_state
 	if anim_state.begins_with(NETWORK_OVERRIDE_PREFIX):
-		_play_override(anim_state.substr(NETWORK_OVERRIDE_PREFIX.length()))
+		var override_name := anim_state.substr(NETWORK_OVERRIDE_PREFIX.length())
+		_apply_crouch_visual_offset(override_name.contains("Crouch"))
+		_play_override(override_name)
 		return
 	match anim_state:
 		"idle":
 			_play_idle_animation(current_player)
 		"crouch":
+			_apply_crouch_visual_offset(true)
 			_play_override("Crouch_Fwd_Loop")
 		"run":
+			_apply_crouch_visual_offset(false)
 			_play_override("Sprint_Loop")
 		"walk":
+			_apply_crouch_visual_offset(false)
 			_play_walk_animation(current_player)
 
 func _animation_length(anim_name: String) -> float:
@@ -963,12 +976,13 @@ func _physics_process_possessed(delta: float) -> void:
 		direction = direction.normalized()
 
 	var crouching := Input.is_action_pressed("crouch")
+	_apply_crouch_visual_offset(crouching, delta)
 	var sprinting := moving and not crouching and Input.is_action_pressed("sprint")
 	var current_speed := walk_speed
 	if crouching:
-		current_speed = walk_speed * POSSESSION_CROUCH_MULTIPLIER
+		current_speed = walk_speed * crouch_multiplier
 	elif sprinting:
-		current_speed = walk_speed * POSSESSION_RUN_MULTIPLIER
+		current_speed = walk_speed * run_multiplier
 
 	if moving:
 		velocity.x = direction.x * current_speed
@@ -1028,13 +1042,33 @@ func _update_possessed_animation(moving: bool, sprinting: bool, crouching: bool)
 	is_idle_animation_active = desired == "idle"
 	match desired:
 		"idle":
+			_apply_crouch_visual_offset(false)
 			_play_idle_animation(current_player)
 		"crouch":
+			_apply_crouch_visual_offset(true)
 			_play_override("Crouch_Fwd_Loop")
 		"run":
+			_apply_crouch_visual_offset(false)
 			_play_override("Sprint_Loop")
 		"walk":
+			_apply_crouch_visual_offset(false)
 			_play_walk_animation(current_player)
+
+func _apply_crouch_visual_offset(crouching: bool, delta: float = -1.0) -> void:
+	var target := model_root_base_position
+	if crouching:
+		target.y += crouch_visual_offset_y
+	if delta < 0.0:
+		model_root.position = target
+	else:
+		model_root.position = model_root.position.move_toward(target, CROUCH_VISUAL_TRANSITION_SPEED * delta)
+
+func _anim_state_is_crouch(anim_state: String) -> bool:
+	if anim_state == "crouch":
+		return true
+	if anim_state.begins_with(NETWORK_OVERRIDE_PREFIX):
+		return anim_state.substr(NETWORK_OVERRIDE_PREFIX.length()).contains("Crouch")
+	return false
 
 func _check_stuck(delta: float) -> void:
 	stuck_check_timer += delta

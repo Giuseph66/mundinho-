@@ -23,9 +23,6 @@ height = 0.12
 
 [node name="Player" type="CharacterBody3D" unique_id=603898414 groups=["player"]]
 script = ExtResource("1")
-speed = 30.0
-sprint_speed = 40.0
-crouch_speed = 10.0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=23926268]
 shape = SubResource("CapsuleShape1")

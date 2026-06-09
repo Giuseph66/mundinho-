@@ -277,6 +277,7 @@ func _toggle_possession() -> void:
 		if nearby_npc == null:
 			return
 		possessed_npc = nearby_npc
+		_apply_control_speed_to_npc(possessed_npc)
 		possessed_npc.start_possession()
 		is_controlling = false
 		camera.current = false
@@ -298,11 +299,17 @@ func possess_specific(npc: CharacterBody3D) -> void:
 	if not is_controlling and possessed_npc != null:
 		possessed_npc.stop_possession()
 	possessed_npc = npc
+	_apply_control_speed_to_npc(possessed_npc)
 	possessed_npc.start_possession()
 	is_controlling = false
 	camera.current = false
 	possess_prompt.visible = false
 	nearby_npc = null
+
+func _apply_control_speed_to_npc(npc: CharacterBody3D) -> void:
+	npc.set("walk_speed", speed)
+	npc.set("run_multiplier", sprint_speed / speed if speed > 0.0 else 1.0)
+	npc.set("crouch_multiplier", crouch_speed / speed if speed > 0.0 else 1.0)
 
 func _apply_camera_mode() -> void:
 	camera.current = is_controlling and not top_down_enabled

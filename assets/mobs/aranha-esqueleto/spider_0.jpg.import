@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://bd1qihfawiylu"
 path.s3tc="res://.godot/imported/spider_0.jpg-f6f5fee9c4b28901656c34c60ae4da40.s3tc.ctex"
+path.etc2="res://.godot/imported/spider_0.jpg-f6f5fee9c4b28901656c34c60ae4da40.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/mobs/aranha-esqueleto/spider_0.jpg"
-dest_files=["res://.godot/imported/spider_0.jpg-f6f5fee9c4b28901656c34c60ae4da40.s3tc.ctex"]
+dest_files=["res://.godot/imported/spider_0.jpg-f6f5fee9c4b28901656c34c60ae4da40.s3tc.ctex", "res://.godot/imported/spider_0.jpg-f6f5fee9c4b28901656c34c60ae4da40.etc2.ctex"]
 
 [params]
 

@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://bebkbko48gv3w"
 path.s3tc="res://.godot/imported/char_player_3.png-77e243ce05b64d10f8d85958166ac403.s3tc.ctex"
+path.etc2="res://.godot/imported/char_player_3.png-77e243ce05b64d10f8d85958166ac403.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/mixamo_characters/char_player_3.png"
-dest_files=["res://.godot/imported/char_player_3.png-77e243ce05b64d10f8d85958166ac403.s3tc.ctex"]
+dest_files=["res://.godot/imported/char_player_3.png-77e243ce05b64d10f8d85958166ac403.s3tc.ctex", "res://.godot/imported/char_player_3.png-77e243ce05b64d10f8d85958166ac403.etc2.ctex"]
 
 [params]
 
