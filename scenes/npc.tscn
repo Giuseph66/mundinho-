@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://c0damfoo63dul"]
 
 [ext_resource type="Script" uid="uid://wltioor84xyt" path="res://scripts/npc_walker.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://drido08qv4wo5" path="res://assets/models/playable_characters/Bruno.fbx" id="2_abqhh"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape1"]
 radius = 0.4
@@ -11,7 +12,11 @@ size = Vector3(0.6, 0.8, 1)
 
 [node name="NPC" type="CharacterBody3D" unique_id=1031608793]
 script = ExtResource("1")
+model_scene = ExtResource("2_abqhh")
 run_multiplier = 5.0
+sword_visual_length = 0.68
+sword_visual_anchor = Vector3(0.35, 0.3, 0.5)
+dagger_visual_length = 0.67
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1637291365]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)

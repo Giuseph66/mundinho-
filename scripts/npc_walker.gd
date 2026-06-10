@@ -1,3 +1,4 @@
+@tool
 extends CharacterBody3D
 
 ## NPC simples: anda em círculo aleatório ao redor do ponto onde nasceu,
@@ -123,6 +124,9 @@ const ATTACK_DAMAGE := 1
 const THROW_RELEASE_FRACTION := 0.5
 const THROW_SPEED := 16.0
 const THROWN_DAGGER_SCENE := preload("res://scenes/thrown_dagger.tscn")
+const SWORD_MODEL_SCENE := preload("res://assets/itens_3d/weapons/espada.glb")
+const DAGGER_MODEL_SCENE := preload("res://assets/itens_3d/weapons/adaga.glb")
+const FIREARM_MODEL_SCENE := preload("res://assets/itens_3d/weapons/pistola.glb")
 
 ## Slot único de arma equipada (selecionado pela mochila — ver item_menu.gd).
 ## O botão "attack" dispara a ação da arma equipada: combo de espada,
@@ -132,6 +136,9 @@ const WEAPON_SWORD := "sword"
 const WEAPON_DAGGER := "dagger"
 const WEAPON_FIREARM := "firearm"
 const WEAPON_IDS: Array[String] = [WEAPON_NONE, WEAPON_SWORD, WEAPON_DAGGER, WEAPON_FIREARM]
+const SWORD_MODEL_LENGTH := 0.62
+const DAGGER_MODEL_LENGTH := 0.32
+const FIREARM_MODEL_LENGTH := 0.24
 
 ## Arma de fogo: o acervo de animação é medieval/fantasia — não existe clipe
 ## de mira/disparo. Por isso o tiro não usa máquina de fases por animação:
@@ -147,10 +154,9 @@ const BULLET_SCENE := preload("res://scenes/bullet.tscn")
 ## de velocidade — sem isso a animação de corrida tocava na velocidade de
 ## passeio, descompassada).
 const POSSESSION_MOUSE_SENSITIVITY := 0.0025
-const POSSESSION_PITCH_MIN := -60.0
-const POSSESSION_PITCH_MAX := 10.0
-const FIRST_PERSON_PITCH_MIN := -85.0
-const FIRST_PERSON_PITCH_MAX := 85.0
+## Limite só pra evitar a singularidade do look_at quando a câmera fica
+## perfeitamente vertical — não trava o olhar em primeira nem terceira pessoa.
+const FREE_LOOK_PITCH_LIMIT := 89.0
 const THIRD_PERSON_SPRING_LENGTH := 4.5
 const FIRST_PERSON_SPRING_LENGTH := 0.0
 const POSSESSION_RUN_MULTIPLIER := 2.2
@@ -176,13 +182,80 @@ enum JumpPhase { NONE, STARTING, AIRBORNE, LANDING }
 enum AttackPhase { NONE, SWINGING, ACTIVE, RECOVERING }
 enum ThrowPhase { NONE, WINDUP, RELEASED }
 
-@export var model_scene: PackedScene
+@export var model_scene: PackedScene:
+	set(value):
+		model_scene = value
+		_refresh_editor_preview()
 @export_range(0.3, 6.0, 0.1) var walk_speed: float = 1.4
 @export_range(1.0, 5.0, 0.1) var run_multiplier: float = POSSESSION_RUN_MULTIPLIER
 @export_range(0.1, 1.0, 0.1) var crouch_multiplier: float = POSSESSION_CROUCH_MULTIPLIER
 @export_range(-2.0, 1.0, 0.05) var crouch_visual_offset_y: float = -0.5
 @export_range(2.0, 30.0, 0.5) var wander_radius: float = 6.0
 @export_range(0.5, 10.0, 0.5) var pause_time: float = 2.0
+
+@export_group("Weapon Editor Preview")
+@export var editor_show_weapon_preview: bool = true:
+	set(value):
+		editor_show_weapon_preview = value
+		_refresh_editor_preview()
+@export_enum("sword", "dagger", "firearm") var editor_preview_weapon: String = WEAPON_SWORD:
+	set(value):
+		editor_preview_weapon = value
+		_refresh_editor_preview()
+
+@export_group("Weapon Visual Tuning")
+@export_range(0.05, 2.0, 0.01) var sword_visual_length: float = SWORD_MODEL_LENGTH:
+	set(value):
+		sword_visual_length = value
+		_refresh_weapon_visual_tuning()
+@export var sword_visual_anchor: Vector3 = Vector3(0.16, 0.5, 0.5):
+	set(value):
+		sword_visual_anchor = value
+		_refresh_weapon_visual_tuning()
+@export var sword_visual_rotation_degrees: Vector3 = Vector3(0.0, 0.0, 90.0):
+	set(value):
+		sword_visual_rotation_degrees = value
+		_refresh_weapon_visual_tuning()
+@export var sword_visual_position: Vector3 = Vector3.ZERO:
+	set(value):
+		sword_visual_position = value
+		_refresh_weapon_visual_tuning()
+@export_range(0.05, 2.0, 0.01) var dagger_visual_length: float = DAGGER_MODEL_LENGTH:
+	set(value):
+		dagger_visual_length = value
+		_refresh_weapon_visual_tuning()
+@export var dagger_visual_anchor: Vector3 = Vector3(0.5, 0.16, 0.5):
+	set(value):
+		dagger_visual_anchor = value
+		_refresh_weapon_visual_tuning()
+@export var dagger_visual_rotation_degrees: Vector3 = Vector3.ZERO:
+	set(value):
+		dagger_visual_rotation_degrees = value
+		_refresh_weapon_visual_tuning()
+@export var dagger_visual_position: Vector3 = Vector3.ZERO:
+	set(value):
+		dagger_visual_position = value
+		_refresh_weapon_visual_tuning()
+@export_range(0.05, 2.0, 0.01) var firearm_visual_length: float = FIREARM_MODEL_LENGTH:
+	set(value):
+		firearm_visual_length = value
+		_refresh_weapon_visual_tuning()
+@export var firearm_visual_anchor: Vector3 = Vector3(0.74, 0.25, 0.5):
+	set(value):
+		firearm_visual_anchor = value
+		_refresh_weapon_visual_tuning()
+@export var firearm_visual_rotation_degrees: Vector3 = Vector3(0.0, -90.0, 0.0):
+	set(value):
+		firearm_visual_rotation_degrees = value
+		_refresh_weapon_visual_tuning()
+@export var firearm_visual_position: Vector3 = Vector3.ZERO:
+	set(value):
+		firearm_visual_position = value
+		_refresh_weapon_visual_tuning()
+@export var firearm_muzzle_position: Vector3 = Vector3(0.0, 0.08, -0.18):
+	set(value):
+		firearm_muzzle_position = value
+		_refresh_weapon_visual_tuning()
 
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var home_position: Vector3
@@ -249,8 +322,7 @@ var model_root_base_position: Vector3 = Vector3.ZERO
 ## (adaga/bala) na posição da mão.
 var weapon_attachment: BoneAttachment3D = null
 ## Visual de cada arma (Node3D), filho de weapon_attachment, oculto até ser
-## equipado. Só espada e arma de fogo têm modelo na mão — adaga é "sacada"
-## do nada ao arremessar (não precisa de visual parado).
+## equipado.
 var weapon_visuals: Dictionary = {}
 var equipped_weapon: String = WEAPON_SWORD
 
@@ -264,6 +336,10 @@ var firearm_muzzle: Marker3D = null
 var firearm_muzzle_flash: MeshInstance3D = null
 
 func _ready() -> void:
+	if Engine.is_editor_hint():
+		model_root_base_position = model_root.position
+		_spawn_editor_preview()
+		return
 	add_to_group(GROUP_NAME)
 	# Mesmo motivo do player: terreno gerado por ruído pode ter ladeiras
 	# íngremes que o ângulo de chão padrão (45°) trataria como parede,
@@ -666,8 +742,7 @@ func _spawn_bullet() -> void:
 	var spawn_position := global_position + Vector3.UP * 1.4
 	if firearm_muzzle != null:
 		spawn_position = firearm_muzzle.global_position
-	var direction := -camera_rig.global_transform.basis.z
-	direction.y = 0.0
+	var direction := -possession_camera.global_transform.basis.z
 	if direction.length_squared() > 0.0001:
 		direction = direction.normalized()
 	else:
@@ -749,6 +824,8 @@ func start_possession() -> void:
 	is_dancing = false
 	_set_camera_mode(false)
 	possession_camera.current = true
+	if network_mode == NETWORK_NONE:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_play_idle_animation(current_player)
 	is_idle_animation_active = true
 
@@ -836,6 +913,8 @@ func _resolve_animation_name(player: AnimationPlayer, requested: String) -> Stri
 	return ""
 
 func _physics_process(delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
 	if network_mode != NETWORK_NONE:
 		return
 	if is_possessed:
@@ -910,6 +989,8 @@ func _advance_jump_phase(delta: float) -> void:
 ## Olhar com o mouse enquanto possuído: gira o CameraRig (yaw) e o SpringArm
 ## (pitch, com limite — sem isso a câmera vira de cabeça pra baixo).
 func _unhandled_input(event: InputEvent) -> void:
+	if Engine.is_editor_hint():
+		return
 	if network_mode != NETWORK_NONE:
 		_network_unhandled_input(event)
 		return
@@ -917,12 +998,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		camera_rig.rotate_y(-event.relative.x * POSSESSION_MOUSE_SENSITIVITY)
-		var pitch_min := FIRST_PERSON_PITCH_MIN if is_first_person else POSSESSION_PITCH_MIN
-		var pitch_max := FIRST_PERSON_PITCH_MAX if is_first_person else POSSESSION_PITCH_MAX
 		camera_spring_arm.rotation.x = clampf(
 			camera_spring_arm.rotation.x - event.relative.y * POSSESSION_MOUSE_SENSITIVITY,
-			deg_to_rad(pitch_min),
-			deg_to_rad(pitch_max),
+			deg_to_rad(-FREE_LOOK_PITCH_LIMIT),
+			deg_to_rad(FREE_LOOK_PITCH_LIMIT),
 		)
 	if event.is_action_pressed("toggle_camera"):
 		_set_camera_mode(not is_first_person)
@@ -939,12 +1018,10 @@ func _network_unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		camera_rig.rotate_y(-event.relative.x * POSSESSION_MOUSE_SENSITIVITY)
-		var pitch_min := FIRST_PERSON_PITCH_MIN if is_first_person else POSSESSION_PITCH_MIN
-		var pitch_max := FIRST_PERSON_PITCH_MAX if is_first_person else POSSESSION_PITCH_MAX
 		camera_spring_arm.rotation.x = clampf(
 			camera_spring_arm.rotation.x - event.relative.y * POSSESSION_MOUSE_SENSITIVITY,
-			deg_to_rad(pitch_min),
-			deg_to_rad(pitch_max),
+			deg_to_rad(-FREE_LOOK_PITCH_LIMIT),
+			deg_to_rad(FREE_LOOK_PITCH_LIMIT),
 		)
 	if event.is_action_pressed("toggle_camera"):
 		_set_camera_mode(not is_first_person)
@@ -1140,8 +1217,41 @@ func _spawn_model() -> void:
 	_attach_weapon(skeleton)
 	_play_walk_animation(player)
 
-## Prende todos os visuais de arma (montados na hora — sem asset novo, mesmo
-## espírito de _apply_texture na aranha) no osso "hand_r" via BoneAttachment3D.
+func _refresh_editor_preview() -> void:
+	if not Engine.is_editor_hint() or not is_inside_tree():
+		return
+	call_deferred("_spawn_editor_preview")
+
+func _spawn_editor_preview() -> void:
+	if not Engine.is_editor_hint() or model_root == null:
+		return
+	_clear_model_root()
+	weapon_attachment = null
+	weapon_visuals.clear()
+	firearm_model = null
+	firearm_muzzle = null
+	firearm_muzzle_flash = null
+	if model_scene == null:
+		return
+	var instance := model_scene.instantiate()
+	if not (instance is Node3D):
+		instance.queue_free()
+		return
+	model_root.add_child(instance)
+	_normalize_model(instance as Node3D)
+	var skeleton := _find_skeleton(instance)
+	current_skeleton = skeleton
+	_attach_weapon(skeleton)
+	equip_weapon(editor_preview_weapon if editor_show_weapon_preview else WEAPON_NONE)
+
+func _clear_model_root() -> void:
+	if model_root == null:
+		return
+	for child in model_root.get_children():
+		model_root.remove_child(child)
+		child.free()
+
+## Prende todos os visuais de arma no osso "hand_r" via BoneAttachment3D.
 ## MIXAMO_TO_QUATERNIUS_BONES garante que esse nome de osso existe nos dois
 ## esquemas suportados (Quaternius e Mixamo retargetado); se um modelo não
 ## tiver, simplesmente não tem arma visível (o combate continua funcionando,
@@ -1169,17 +1279,168 @@ func _attach_weapon(skeleton: Skeleton3D) -> void:
 	skeleton.add_child(attachment)
 	weapon_attachment = attachment
 
-	var sword := _build_sword_visual()
+	var sword := _build_weapon_model_visual(
+		"SwordVisual",
+		SWORD_MODEL_SCENE,
+		sword_visual_length,
+		sword_visual_anchor,
+		sword_visual_rotation_degrees,
+		sword_visual_position
+	)
+	if sword == null:
+		sword = _build_sword_visual()
 	attachment.add_child(sword)
 	weapon_visuals[WEAPON_SWORD] = sword
 
-	var firearm := _build_firearm_visual()
+	var dagger := _build_weapon_model_visual(
+		"DaggerVisual",
+		DAGGER_MODEL_SCENE,
+		dagger_visual_length,
+		dagger_visual_anchor,
+		dagger_visual_rotation_degrees,
+		dagger_visual_position
+	)
+	if dagger != null:
+		attachment.add_child(dagger)
+		weapon_visuals[WEAPON_DAGGER] = dagger
+
+	var firearm := _build_firearm_model_visual()
+	if firearm == null:
+		firearm = _build_firearm_visual()
 	attachment.add_child(firearm)
 	weapon_visuals[WEAPON_FIREARM] = firearm
 	firearm_model = firearm
 
 	for id in weapon_visuals:
 		weapon_visuals[id].visible = (id == equipped_weapon)
+	_refresh_weapon_visual_tuning()
+
+func _build_weapon_model_visual(
+	visual_name: String,
+	scene: PackedScene,
+	target_length: float,
+	model_anchor: Vector3,
+	model_rotation_degrees: Vector3,
+	model_position: Vector3
+) -> Node3D:
+	var model := scene.instantiate() as Node3D
+	if model == null:
+		return null
+	var root := Node3D.new()
+	root.name = visual_name
+	var holder := Node3D.new()
+	holder.name = "Model"
+	root.add_child(holder)
+	holder.add_child(model)
+	_fit_weapon_model(model, target_length, model_anchor)
+	holder.rotation_degrees = model_rotation_degrees
+	holder.position = model_position
+	return root
+
+func _build_firearm_model_visual() -> Node3D:
+	var root := _build_weapon_model_visual(
+		"FirearmVisual",
+		FIREARM_MODEL_SCENE,
+		firearm_visual_length,
+		firearm_visual_anchor,
+		firearm_visual_rotation_degrees,
+		firearm_visual_position
+	)
+	if root == null:
+		return null
+
+	var muzzle := Marker3D.new()
+	muzzle.name = "Muzzle"
+	muzzle.position = firearm_muzzle_position
+	root.add_child(muzzle)
+	firearm_muzzle = muzzle
+
+	var flash_material := StandardMaterial3D.new()
+	flash_material.albedo_color = Color(1.0, 0.85, 0.4)
+	flash_material.emission_enabled = true
+	flash_material.emission = Color(1.0, 0.7, 0.2)
+	flash_material.emission_energy_multiplier = 4.0
+
+	var flash := MeshInstance3D.new()
+	flash.name = "MuzzleFlash"
+	flash.mesh = SphereMesh.new()
+	flash.mesh.radius = 0.07
+	flash.mesh.height = 0.14
+	flash.mesh.material = flash_material
+	flash.visible = false
+	muzzle.add_child(flash)
+	firearm_muzzle_flash = flash
+
+	var flash_light := OmniLight3D.new()
+	flash_light.light_color = Color(1.0, 0.7, 0.3)
+	flash_light.light_energy = 6.0
+	flash_light.omni_range = 3.0
+	flash.add_child(flash_light)
+
+	return root
+
+func _refresh_weapon_visual_tuning() -> void:
+	if not is_inside_tree():
+		return
+	_apply_weapon_visual_tuning(
+		WEAPON_SWORD,
+		sword_visual_length,
+		sword_visual_anchor,
+		sword_visual_rotation_degrees,
+		sword_visual_position
+	)
+	_apply_weapon_visual_tuning(
+		WEAPON_DAGGER,
+		dagger_visual_length,
+		dagger_visual_anchor,
+		dagger_visual_rotation_degrees,
+		dagger_visual_position
+	)
+	_apply_weapon_visual_tuning(
+		WEAPON_FIREARM,
+		firearm_visual_length,
+		firearm_visual_anchor,
+		firearm_visual_rotation_degrees,
+		firearm_visual_position
+	)
+	if firearm_muzzle != null:
+		firearm_muzzle.position = firearm_muzzle_position
+
+func _apply_weapon_visual_tuning(
+	weapon_id: String,
+	target_length: float,
+	model_anchor: Vector3,
+	model_rotation_degrees: Vector3,
+	model_position: Vector3
+) -> void:
+	var root := weapon_visuals.get(weapon_id, null) as Node3D
+	if root == null:
+		return
+	var holder := root.get_node_or_null("Model") as Node3D
+	if holder == null or holder.get_child_count() == 0:
+		return
+	var model := holder.get_child(0) as Node3D
+	if model == null:
+		return
+	_fit_weapon_model(model, target_length, model_anchor)
+	holder.rotation_degrees = model_rotation_degrees
+	holder.position = model_position
+
+func _fit_weapon_model(model: Node3D, target_length: float, model_anchor: Vector3) -> void:
+	model.position = Vector3.ZERO
+	model.rotation = Vector3.ZERO
+	model.scale = Vector3.ONE
+	var bounds := _calculate_local_aabb(model)
+	var longest_axis := maxf(bounds.size.x, maxf(bounds.size.y, bounds.size.z))
+	if longest_axis > 0.001:
+		model.scale = Vector3.ONE * (target_length / longest_axis)
+		bounds = _calculate_local_aabb(model)
+	var anchor := bounds.position + Vector3(
+		bounds.size.x * model_anchor.x,
+		bounds.size.y * model_anchor.y,
+		bounds.size.z * model_anchor.z
+	)
+	model.position -= anchor
 
 ## Lâmina (BoxMesh) + cabo (CylinderMesh), material metálico — espada simples
 ## montada em código.

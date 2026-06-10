@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cjkxphvtc2ua3"
-path="res://.godot/imported/Bruno_0.png-496aba8c6c3e44b786a00c530d64934b.ctex"
+path.s3tc="res://.godot/imported/Bruno_0.png-496aba8c6c3e44b786a00c530d64934b.s3tc.ctex"
+path.etc2="res://.godot/imported/Bruno_0.png-496aba8c6c3e44b786a00c530d64934b.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "e01450de00bd1d08c40e1c0505fd544b"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/playable_characters/Bruno_0.png"
-dest_files=["res://.godot/imported/Bruno_0.png-496aba8c6c3e44b786a00c530d64934b.ctex"]
+dest_files=["res://.godot/imported/Bruno_0.png-496aba8c6c3e44b786a00c530d64934b.s3tc.ctex", "res://.godot/imported/Bruno_0.png-496aba8c6c3e44b786a00c530d64934b.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +42,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

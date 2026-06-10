@@ -3,7 +3,6 @@
 [ext_resource type="PackedScene" uid="uid://dt1ucdov0lg5n" path="res://scenes/world.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2"]
 [ext_resource type="Script" uid="uid://bomfugpu8n4pb" path="res://scripts/menu_style_loader.gd" id="3"]
-[ext_resource type="PackedScene" path="res://scenes/npcs.tscn" id="4"]
 [ext_resource type="PackedScene" uid="uid://vwgwoua31gs2" path="res://scenes/maze.tscn" id="5"]
 [ext_resource type="PackedScene" uid="uid://ssius3mp7y62" path="res://scenes/mansion.tscn" id="6"]
 [ext_resource type="PackedScene" uid="uid://3gdl4llpoey2" path="res://scenes/mobs/SpiderEnemy.tscn" id="7_spider"]
@@ -12,6 +11,7 @@
 [ext_resource type="PackedScene" path="res://scenes/character_spawner.tscn" id="10_spawn"]
 [ext_resource type="PackedScene" path="res://scenes/character_select.tscn" id="11_select"]
 [ext_resource type="Script" uid="uid://cb1mwjdennnb1" path="res://scripts/network_game.gd" id="12_network"]
+[ext_resource type="PackedScene" path="res://scenes/objects/chest.tscn" id="13_chest"]
 
 [node name="Main" type="Node3D" unique_id=1254629943]
 script = ExtResource("3")
@@ -40,9 +40,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 3, 9)
 [node name="SpiderEnemy2" parent="." unique_id=847783564 instance=ExtResource("7_spider")]
 transform = Transform3D(0.70710677, 0, -0.70710677, 0, 1, 0, 0.70710677, 0, 0.70710677, 30, 3, 8)
 
-[node name="NPCs" parent="." unique_id=1108458688 instance=ExtResource("4")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11, 0)
-
 [node name="CharacterSpawner" parent="." unique_id=2077981618 instance=ExtResource("10_spawn")]
 
 [node name="CharacterSelect" parent="." unique_id=779005852 instance=ExtResource("11_select")]
@@ -51,6 +48,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11, 0)
 script = ExtResource("12_network")
 bot_count = 1
 bot_character_names = PackedStringArray()
+
+[node name="Chest" parent="." instance=ExtResource("13_chest")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, 12, 16)
+item_names = Array[String](["Moeda de Ouro", "Poção de Vida", "Espada"])
 
 [node name="ItemMenu" type="CanvasLayer" parent="." unique_id=1696268353 instance=ExtResource("8_choun")]
 script = ExtResource("9_ya4ey")

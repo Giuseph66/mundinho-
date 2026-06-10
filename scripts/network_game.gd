@@ -9,6 +9,7 @@ const NETWORK_CLIENT_REMOTE := 3
 const REMOTE_SNAPSHOT_ALPHA := 0.45
 const BOT_ID_START := -1000
 const SIMULATED_PLAYER_ID_START := 10000
+const NETWORK_CAMERA_PITCH_LIMIT := 89.0
 
 @export_range(0, 32, 1) var bot_count: int = 0
 @export var bot_character_names: PackedStringArray = PackedStringArray()
@@ -429,7 +430,11 @@ func _sanitize_input(raw_input: Dictionary) -> Dictionary:
 	input["attack"] = bool(raw_input.get("attack", false))
 	input["dance"] = bool(raw_input.get("dance", false))
 	input["camera_yaw"] = wrapf(float(raw_input.get("camera_yaw", 0.0)), -PI, PI)
-	input["camera_pitch"] = clampf(float(raw_input.get("camera_pitch", deg_to_rad(-12.0))), deg_to_rad(-60.0), deg_to_rad(10.0))
+	input["camera_pitch"] = clampf(
+		float(raw_input.get("camera_pitch", deg_to_rad(-12.0))),
+		deg_to_rad(-NETWORK_CAMERA_PITCH_LIMIT),
+		deg_to_rad(NETWORK_CAMERA_PITCH_LIMIT)
+	)
 	var move = raw_input.get("move", Vector2.ZERO)
 	if move is Vector2:
 		var move_vector: Vector2 = move

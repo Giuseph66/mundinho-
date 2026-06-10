@@ -13,6 +13,12 @@ const WEAPON_OPTIONS: Array[Dictionary] = [
 	{"id": "none", "label": "Desarmar"},
 ]
 
+const WEAPON_ICON_PATHS: Dictionary = {
+	"sword": "res://assets/ui/weapons/sword.png",
+	"dagger": "res://assets/ui/weapons/dagger.png",
+	"firearm": "res://assets/ui/weapons/firearm.png",
+}
+
 ## Clipes que envolvem locomoção: o NPC continua andando pelo mundo enquanto
 ## toca esse clipe (não congela no lugar).
 const WALK_ANIMATIONS: Array[String] = [
@@ -83,6 +89,7 @@ var _weapon_buttons: Dictionary = {}
 @onready var animation_resume_button: Button = $PanelContainer/MarginContainer/VBoxContainer/AnimationResumeButton
 
 func _ready() -> void:
+	add_to_group("item_menu")
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
 	close_button.pressed.connect(_toggle)
@@ -131,6 +138,13 @@ func _toggle() -> void:
 	if visible:
 		_refresh_weapon_buttons()
 
+## Adiciona item ao inventário (chamado por baús/objetos coletáveis) e
+## atualiza a grade se o menu já tiver sido construído.
+func add_item(item_name: String) -> void:
+	items.append(item_name)
+	if grid != null:
+		_fill_items()
+
 func _fill_items() -> void:
 	for child in grid.get_children():
 		child.queue_free()
@@ -139,6 +153,9 @@ func _fill_items() -> void:
 		button.custom_minimum_size = Vector2(104, 82)
 		button.text = item
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var weapon_id := _weapon_id_from_label(item)
+		if weapon_id != "":
+			_apply_weapon_icon(button, weapon_id)
 		grid.add_child(button)
 
 ## Seção "arma equipada": uma fileira de botões (Espada/Adaga/Arma de fogo/
@@ -169,13 +186,33 @@ func _build_weapon_section() -> void:
 		var weapon_id: String = option["id"]
 		var button := Button.new()
 		button.text = option["label"]
-		button.custom_minimum_size = Vector2(0, 40)
+		button.custom_minimum_size = Vector2(0, 52)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.toggle_mode = true
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_apply_weapon_icon(button, weapon_id)
 		button.pressed.connect(_on_weapon_button_pressed.bind(weapon_id))
 		row.add_child(button)
 		_weapon_buttons[weapon_id] = button
+
+func _weapon_id_from_label(label: String) -> String:
+	var normalized_label := label.strip_edges().to_lower()
+	for option in WEAPON_OPTIONS:
+		if String(option["label"]).to_lower() == normalized_label:
+			return String(option["id"])
+	return ""
+
+func _apply_weapon_icon(button: Button, weapon_id: String) -> void:
+	var path := String(WEAPON_ICON_PATHS.get(weapon_id, ""))
+	if path == "":
+		return
+	var icon := load(path) as Texture2D
+	if icon == null:
+		return
+	var label := button.text
+	button.icon = icon
+	button.tooltip_text = label
+	button.text = ""
 
 ## Equipa a arma escolhida no NPC possuído pelo jogador (acessível via
 ## player.possessed_npc — o player fica no grupo "player", mesmo acesso
